@@ -1,13 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Added a six-minute GitHub Actions continuation timer and a data freshness check for automatic scans.
+- Added the manual Telegram delivery test and grouped alerts that show balances, approximate USD amounts, and 7- and 30-day direct XLM flows.
+- Separated approved private holders from unreviewed candidates and service wallets in the dashboard and Telegram.
+- Added resumable Horizon payment backfills and accumulation rankings for 1, 7, and 30 completed UTC days.
+- Added current XLM/USD equivalents across the site and per-wallet asset valuations with explicit quote coverage.
+
 ## 0.3.2
 
 - Optional Telegram digest with secret-based setup and delivery checkpoint.
 - Freshness guard for backup dispatches, with separate reporting for successful fallback scans.
 
 ## 0.3.1
-- Daily Coinbase Exchange XLM/USD closes aligned with UTC wallet balance changes.
 
+- Daily Coinbase Exchange XLM/USD closes aligned with UTC wallet balance changes.
 - Wallet inactivity based on scanned operations, a dormant filter, and activity-resumption alerts.
 - Repeated direct XLM transfers with transaction evidence and no ownership inference.
 
