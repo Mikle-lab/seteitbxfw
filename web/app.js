@@ -9,6 +9,7 @@ import {exchanges} from './modules/exchanges/index.js';
 import {dex} from './modules/dex/index.js';
 import {interactionsView} from './modules/activity/index.js';
 import {accumulationView} from './modules/accumulation/index.js';
+import {setSpot, spotText, xlmText} from './shared/money.js';
 import {trendView} from './modules/trends/index.js';
 
 const view = document.querySelector('#view');
@@ -90,7 +91,7 @@ async function section(source) {
     dex: async () => dex((await cached('markets.json', summary)).dex, period),
     watchlist: () => watchlist(holders, period, render),
     settings: () => el('section', {}, el('h1', {}, 'Настройки'), el('p', {}, 'Порог крупного движения: ' +
-      number(summary.threshold) + ' XLM. Порог и категории меняются в config.json репозитория.')),
+      xlmText(summary.threshold) + '. Порог и категории меняются в config.json репозитория.')),
     wallet: async () => holders.some(row => row.address === address) && addressPattern.test(address) ?
       wallet(await cached('wallets/' + address + '.json', summary), period, cutoff(summary, period), summary.labels) :
       el('section', {}, el('h1', {}, 'Кошелёк'), el('p', {}, 'У сборщика пока нет снимков этого адреса.'),
@@ -128,6 +129,7 @@ function commitView(result) {
   const coverageApplies = ['overview', 'whales', 'wallet', 'anomalies', 'transactions'].includes(rendered);
   showNotice(incomplete && coverageApplies ? 'История за выбранный период пока неполная.' : '');
   status.textContent = statusLine(data.summary);
+  document.querySelector('#spot').textContent = spotText(data.summary.spot_usd);
 }
 
 async function load() {
@@ -141,6 +143,7 @@ async function load() {
     if (summary.schema !== 1) throw new Error('Unsupported data schema');
     const holders = await json('whales.json', summary.updated);
     cache = new Map();
+    setSpot(summary.spot_usd);
     let result;
     let ticket;
     do {
@@ -152,6 +155,7 @@ async function load() {
     commitView(result);
   } catch {
     cache = priorCache;
+    setSpot(data?.summary.spot_usd);
     if (!data) status.textContent = 'Данные недоступны';
     showNotice(data ? 'Не удалось обновить данные. Показана предыдущая версия.' : 'Не удалось загрузить опубликованные данные.');
   } finally {

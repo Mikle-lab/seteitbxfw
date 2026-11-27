@@ -70,8 +70,11 @@ class Horizon:
             params["cursor"] = cursor
         return self.get("/accounts/" + address + "/payments", **params)["_embedded"]["records"]
 
+    def account(self, address):
+        return self.get("/accounts/" + address, missing=True)
+
     def balance(self, address):
-        account = self.get("/accounts/" + address, missing=True)
+        account = self.account(address)
         if account is None:
             return 0
         from collector.model import stroops

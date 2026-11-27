@@ -1,4 +1,5 @@
-import {chart, date, el, number, panel, signed, tile} from '../../shared/ui.js';
+import {signedXlm, xlm, xlmText} from '../../shared/money.js';
+import {chart, date, el, number, panel, tile} from '../../shared/ui.js';
 
 function balanceFlows(rows) {
   const observed = rows.filter(row => row.up != null && row.down != null);
@@ -21,7 +22,7 @@ function balanceFlows(rows) {
     context.fillRect(x, 76, bar, down);
   });
   return el('div', {}, canvas, el('div', {class: 'legend'}, date(observed[0].time),
-    'Пик за снимок: ' + number(maximum) + ' XLM', date(observed.at(-1).time)));
+    'Пик за снимок: ' + xlmText(maximum), date(observed.at(-1).time)));
 }
 
 export function dashboard(summary, period) {
@@ -29,24 +30,24 @@ export function dashboard(summary, period) {
   const cards = el('div', {class: 'grid'},
     tile('Обнаружено держателей', number(summary.discovered)),
     tile('Киты выше порога', number(summary.active)),
-    tile('Баланс китов, XLM', number(summary.total)),
-    tile('Накопление, XLM', signed(stats.up)),
-    tile('Сокращение, XLM', signed('-' + stats.down)),
-    tile('Чистое изменение, XLM', signed(stats.net)),
+    tile('Баланс китов, XLM', xlm(summary.total)),
+    tile('Накопление, XLM', signedXlm(stats.up)),
+    tile('Сокращение, XLM', signedXlm('-' + stats.down)),
+    tile('Чистое изменение, XLM', signedXlm(stats.net)),
     tile('Крупных движений', number(stats.large)),
     tile('Новых китов', number(stats.new)),
     tile('Сигналов', el('span', {class: 'warning'}, number(stats.anomalies))),
-    ...(summary.private_only ? [] : [tile('Приток на биржевые адреса, XLM', number(stats.markets?.inflow)),
-    tile('Отток с биржевых адресов, XLM', number(stats.markets?.outflow)),
-    tile('DEX · покупки XLM', el('span', {class: 'positive'}, number(stats.markets?.buy))),
-    tile('DEX · продажи XLM', el('span', {class: 'negative'}, number(stats.markets?.sell)))]));
+    ...(summary.private_only ? [] : [tile('Приток на биржевые адреса, XLM', xlm(stats.markets?.inflow)),
+    tile('Отток с биржевых адресов, XLM', xlm(stats.markets?.outflow)),
+    tile('DEX · покупки XLM', el('span', {class: 'positive'}, xlm(stats.markets?.buy))),
+    tile('DEX · продажи XLM', el('span', {class: 'negative'}, xlm(stats.markets?.sell)))]));
   const distribution = Object.entries(summary.categories).map(([name, count]) => el('div', {},
     el('span', {}, name), el('strong', {}, number(count)), el('meter', {min: 0, max: summary.active, value: count, 'aria-label': name})));
   return el('section', {}, el('h1', {}, 'Обзор'),
     el('p', {class: 'muted'}, 'Stellar Mainnet · статистика допущенных держателей'),
     cards,
     summary.candidates ? el('p', {class: 'muted'}, number(summary.candidates) + ' кандидатов проходят отдельную проверку.', ' ', el('a', {href: '#accumulation'}, 'Смотреть историю платежей')) : null,
-    el('div', {class: 'panels'}, panel('Совокупный баланс китов', chart(stats.chart)),
+    el('div', {class: 'panels'}, panel('Совокупный баланс китов', chart(stats.chart, xlmText)),
       panel('Категории держателей', el('div', {class: 'distribution'}, distribution.length ? distribution : 'Пока нет данных.'))),
     el('div', {class: 'panels'}, panel('Накопление и сокращение по снимкам', balanceFlows(stats.chart)),
       panel('Покрытие наблюдений', el('p', {class: 'muted'},

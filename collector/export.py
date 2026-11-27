@@ -7,6 +7,7 @@ from pathlib import Path
 
 from collector.analytics.activity import direct_interactions, inactivity
 from collector.analytics.payment_history import summarize_history
+from collector.analytics.portfolio import value_portfolio
 from collector.analytics.review import private_payment, private_signal, status
 from collector.analytics.trends import build_trends
 from collector.market_export import build_markets
@@ -48,6 +49,7 @@ def build(data=Path("data"), target=Path("dist"), config=None):
         if details:
             last_error = max(details)
     operations, signals, totals, flows, fills, fill_totals = [], [], [], [], [], []
+    valuation_time = datetime.now(timezone.utc).isoformat()
     prices = []
     snapshots = defaultdict(list)
     config_labels = cfg["labels"]
@@ -144,11 +146,13 @@ def build(data=Path("data"), target=Path("dist"), config=None):
             for row in interval["daily"]:
                 row["price"] = prices_by_day.get(row["day"])
         payment_summary = summarize_history(state.get("payment_history", {}).get(address))
-        whale_row = dict(address=address, **wallet, periods=stats, review=classes[address],
+        wallet_index = {key: value for key, value in wallet.items() if key != "assets"}
+        whale_row = dict(address=address, **wallet_index, periods=stats, review=classes[address],
                          payments=payment_summary, inactivity=inactivity(wallet, activity_through, threshold_days))
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,
-              trends=wallet_trends[address], operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
+              trends=wallet_trends[address], portfolio=value_portfolio(wallet, state.get("asset_quotes", {}),
+              state.get("spot_usd"), valuation_time), operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
               counterparts=counterparts.most_common(12), interactions=links_by_address[address][:15]))
 
     whales = [row for row in whale_rows if row["review"] == "approved"]
@@ -187,7 +191,7 @@ def build(data=Path("data"), target=Path("dist"), config=None):
           exported=end.isoformat(), active=len(active), discovered=len(whales),
           total=xlm(sum(stroops(row["balance"]) for row in active)), periods=metrics,
           categories=Counter(row["category"] for row in active), labels=config_labels,
-          inactive_days=threshold_days, candidates=len(candidates), private_only="private_review" in cfg,
+          inactive_days=threshold_days, spot_usd=state.get("spot_usd"), candidates=len(candidates), private_only="private_review" in cfg,
           threshold=cfg["large_xlm"], sections={"operations": export_chunks(public, "operations", operations),
                                               "anomalies": export_chunks(public, "anomalies", signals)}))
     write(public / "whales.json", indexed)

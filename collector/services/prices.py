@@ -61,3 +61,15 @@ def price_history(rows):
         history.append(dict(day=day, usd=format(price, "f"),
                             percent=format(percent, "f") if percent is not None else None))
     return history
+
+
+def collect_spot():
+    request = Request("https://api.exchange.coinbase.com/products/XLM-USD/ticker",
+                      headers={"Accept": "application/json", "User-Agent": "XLM-Radar/0.3"})
+    with urlopen(request, timeout=10) as response:
+        result = json.load(response)
+    price = Decimal(result["price"])
+    if not price.is_finite() or price <= 0:
+        raise ValueError("Invalid XLM spot quote")
+    instant = datetime.fromisoformat(result["time"]).astimezone(timezone.utc)
+    return dict(price=format(price, "f"), time=instant.isoformat(timespec="seconds").replace("+00:00", "Z"))

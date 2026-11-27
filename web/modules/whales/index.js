@@ -1,3 +1,4 @@
+import {signedXlm, xlm} from '../../shared/money.js';
 import {account, date, el, number, select, signed, table} from '../../shared/ui.js';
 import {inactivityText} from '../activity/index.js';
 import {star} from '../watchlist/index.js';
@@ -25,7 +26,7 @@ export function whales(rows, period, state, rerender) {
   const result = list.slice(state.page * 25, (state.page + 1) * 25).map(row => {
     const stats = row.periods[period];
     return [el('div', {class: 'account'}, account(row.address, true), star(row.address)), row.category,
-      number(row.balance), signed(stats.delta), signed(stats.percent), number(stats.received), number(stats.sent),
+      xlm(row.balance), signedXlm(stats.delta), signed(stats.percent), xlm(stats.received), xlm(stats.sent),
       number(stats.operations), date(row.last_activity),
       el('span', {class: row.inactivity?.dormant ? 'warning' : 'muted'}, inactivityText(row.inactivity)), stats.anomalies ? el('span', {class: 'warning'}, number(stats.anomalies)) : '—'];
   });

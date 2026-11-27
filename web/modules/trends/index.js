@@ -1,3 +1,4 @@
+import {signedXlm, xlm} from '../../shared/money.js';
 import {account, el, link, number, panel, select, signed, table, tile} from '../../shared/ui.js';
 
 const usd = new Intl.NumberFormat('ru', {style: 'currency', currency: 'USD', maximumFractionDigits: 6});
@@ -8,7 +9,7 @@ const windows = {'7d': '7 дней', '30d': '30 дней'};
 export function trendView(data, selected, change) {
   const stats = data.periods[selected];
   const ranking = rows => table(['Кошелёк', 'Категория', 'Накопление XLM', 'Сокращение XLM', 'Итог XLM'],
-    rows.map(row => [account(row.address), row.category, number(row.up), number(row.down), signed(row.net)]),
+    rows.map(row => [account(row.address), row.category, xlm(row.up), xlm(row.down), signedXlm(row.net)]),
     'Пока нет кошельков с полным покрытием периода и движением в этом направлении.');
   return el('section', {}, el('h1', {}, 'Динамика балансов'),
     el('p', {class: 'muted'}, 'Завершённые дни UTC по ' + data.through +
@@ -32,7 +33,7 @@ export function walletTrends(trends) {
   if (!trends) return null;
   const stats = Object.entries(windows).map(([key, label]) => {
     const row = trends[key];
-    return [label, row.observed + ' / ' + row.required, number(row.up), number(row.down), signed(row.net)];
+    return [label, row.observed + ' / ' + row.required, xlm(row.up), xlm(row.down), signedXlm(row.net)];
   });
   const daily = trends['30d'].daily.slice().reverse();
   return panel('Долгосрочная динамика',
@@ -40,5 +41,5 @@ export function walletTrends(trends) {
       el('p', {class: 'muted'}, 'Суммы включают завершённые сутки с наблюдениями у обеих границ. Неполные периоды можно узнать по столбцу «Наблюдалось суток».'),
       table(['Окно', 'Наблюдалось суток', 'Накопление XLM', 'Сокращение XLM', 'Итог XLM'], stats),
       panel('Изменения по дням UTC', table(['Дата', 'Изменение XLM', 'Закрытие XLM/USD', 'Изменение цены, %'],
-        daily.map(row => [row.day, signed(row.delta), priceText(row.price?.usd), signed(row.price?.percent)]), 'Пока нет двух последовательных наблюдений у границ суток.'))));
+        daily.map(row => [row.day, signedXlm(row.delta), priceText(row.price?.usd), signed(row.price?.percent)]), 'Пока нет двух последовательных наблюдений у границ суток.'))));
 }

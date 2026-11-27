@@ -10,12 +10,13 @@ from pathlib import Path
 from collector.analytics.activity import observe_activity
 from collector.analytics.markets import collect_trades, exchange_flow, summarize_fills, trade_key
 from collector.analytics.payment_history import update_payment_histories
+from collector.analytics.portfolio import balance_assets, refresh_markets
 from collector.analytics.review import approved, status
 from collector.analytics.signals import balance_signals, record
 from collector.analytics.trends import closed_day_signals
 from collector.model import category, movements, stroops, valid_address, xlm
 from collector.services.horizon import Horizon
-from collector.services.prices import collect_prices
+from collector.services.prices import collect_prices, collect_spot
 from collector.storage import Store, load, write
 
 BALANCE_OPERATIONS = {
@@ -144,7 +145,7 @@ def scan(api, store, cfg, now):
     state["trade_sources"] = dict(sorted(sources.items(), key=lambda item: int(item[0]), reverse=True)[:15000])
 
     # Reserve capacity for both previously tracked accounts and new candidates.
-    available = max(0, api.requests_remaining - 8 - cfg.get("history_pages", 0))
+    available = max(0, api.requests_remaining - 8 - cfg.get("history_pages", 0) - cfg.get("portfolio_quote_pages", 0))
     tagged = sorted(address for address, label in cfg["labels"].items()
                     if label.get("type") == "exchange" and valid_address(address))[:available]
     available -= len(tagged)
@@ -156,7 +157,12 @@ def scan(api, store, cfg, now):
     selected = sorted(queue, key=lambda address: (-int(queue[address][0]), queue[address][1], address))[:candidate_limit]
     batch = hashlib.sha256((cursor + ":" + now).encode()).hexdigest()[:20]
     for address in dict.fromkeys(tagged + tracked + selected):
-        balance = api.balance(address)
+        assets = None
+        if cfg.get("portfolio_quote_pages"):
+            assets = balance_assets(api.account(address))
+            balance = next((stroops(row["amount"]) for row in assets if row["kind"] == "native"), 0)
+        else:
+            balance = api.balance(address)
         candidate = queue.pop(address, None)
         previous = wallets.get(address)
         label = cfg["labels"].get(address)
@@ -175,6 +181,8 @@ def scan(api, store, cfg, now):
                       maximum=xlm(max(balance, stroops(wallet["maximum"]))))
         if candidate:
             wallet["last_activity"] = candidate[1]
+        if assets is not None:
+            wallet["assets"] = assets
         wallets[address] = wallet
         if prior_balance != balance or wallet.get("snapshot_day") != now[:10]:
             events["snapshots"].append(dict(id=f"{batch}:{address}", time=now, address=address, balance=balance_text,
@@ -185,6 +193,12 @@ def scan(api, store, cfg, now):
     # Retain a bounded candidate queue; tracked addresses and archives are never pruned.
     state["queue"] = dict(sorted(queue.items(), key=lambda item: (-int(item[1][0]), item[1][1], item[0]))[:8000])
     update_payment_histories(api, state, cfg, now, root["history_elder_ledger"])
+    refresh_markets(api, state, cfg, now)
+    if cfg.get("portfolio_quote_pages"):
+        try:
+            state["spot_usd"] = collect_spot()
+        except (OSError, ValueError, TypeError, KeyError, ArithmeticError):
+            print("XLM/USD spot quote unavailable; retaining the last quote.", file=sys.stderr)
     active = [wallet for address, wallet in wallets.items() if wallet["active"] and approved(address, cfg)]
     private_changes = [stroops(row["delta"]) for row in events["snapshots"]
                        if row["delta"] is not None and approved(row["address"], cfg)]

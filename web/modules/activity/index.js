@@ -1,3 +1,4 @@
+import {xlm} from '../../shared/money.js';
 import {account, date, el, number, panel, table, transaction} from '../../shared/ui.js';
 
 export function inactivityText(status) {
@@ -11,7 +12,7 @@ export function interactionTable(rows, wallet) {
   return table([...headers, 'Транзакций', 'Дней с переводами', 'Сумма XLM', 'Последний перевод UTC', 'Примеры'],
     rows.map(row => [
       ...(wallet ? [account(row.left === wallet ? row.right : row.left)] : [account(row.left), account(row.right)]),
-      number(row.transactions), number(row.days), number(row.amount), date(row.last),
+      number(row.transactions), number(row.days), xlm(row.amount), date(row.last),
       el('span', {}, row.examples.flatMap((hash, index) => [index ? ' · ' : '', transaction(hash)])),
     ]), 'Пока нет известных пар, удовлетворяющих критериям.');
 }

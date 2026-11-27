@@ -137,6 +137,7 @@
       "evidence": "StellarExpert public directory, exchange tag"
     }
   },
+  "portfolio_quote_pages": 10,
   "history_pages": 12,
   "private_review": {
     "GA2VRL65L3ZFEDDJ357RGI3MAOKPJZ2Z3IJTPSC24I4KDTNFSVEQURRA": {

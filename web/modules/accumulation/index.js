@@ -1,4 +1,5 @@
-import {account, el, number, panel, select, signed, table} from '../../shared/ui.js';
+import {signedXlm, xlm} from '../../shared/money.js';
+import {account, el, number, panel, select, table} from '../../shared/ui.js';
 
 const periods = {'1': '1 день', '7': '7 дней', '30': '30 дней'};
 
@@ -9,7 +10,7 @@ export function paymentHistory(history) {
     table(['Период', 'Получено XLM', 'Отправлено XLM', 'Разница XLM', 'Платежей', 'Покрытие'],
       Object.entries(periods).map(([key, text]) => {
         const row = history.periods[key];
-        return [text, number(row.incoming), number(row.outgoing), signed(row.net), number(row.payments),
+        return [text, xlm(row.incoming), xlm(row.outgoing), signedXlm(row.net), number(row.payments),
           row.complete ? 'Полное' : 'Догружается или неполное'];
       }))) : el('p', {class: 'muted'}, 'История ожидает загрузки.'));
 }
@@ -19,7 +20,7 @@ export function accumulationView(data, holders, window, change) {
   function ranking(group) {
     return el('div', {}, el('p', {class: 'muted'}, 'Полная история: ' + number(group.complete) + ' из ' + number(group.total)),
       table(['Адрес', 'Баланс XLM', 'Получено XLM', 'Отправлено XLM', 'Разница XLM'], group.rows.map(
-        row => [account(row.address), number(row.balance), number(row.flows.incoming), number(row.flows.outgoing), signed(row.flows.net)]),
+        row => [account(row.address), xlm(row.balance), xlm(row.flows.incoming), xlm(row.flows.outgoing), signedXlm(row.flows.net)]),
       'Пока нет полного периода с положительным итогом.'));
   }
   const candidates = holders.filter(row => row.review === 'candidate' && row.active);
@@ -29,7 +30,7 @@ export function accumulationView(data, holders, window, change) {
     panel('Допущенные держатели', ranking(result.approved)),
     panel('Положительный итог у кандидатов', ranking(result.candidates)),
     panel('Кандидаты на проверку', table(['Адрес', 'Баланс XLM', 'История для периода'],
-      candidates.map(row => [account(row.address), number(row.balance), row.payments?.end === data.through &&
+      candidates.map(row => [account(row.address), xlm(row.balance), row.payments?.end === data.through &&
         row.payments.periods[window].complete ? 'Готова' : 'Догружается или неполная'])),
     ));
 }

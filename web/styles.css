@@ -89,3 +89,7 @@ meter { width: 100%; grid-column: 1 / -1; height: .5rem; accent-color: var(--acc
   flex-wrap: wrap;
   max-width: 100%;
 }
+
+.spot-quote { margin-top: .5rem; }
+.xlm-value { display: inline-flex; flex-wrap: wrap; gap: .2rem .35rem; }
+.xlm-usd { color: var(--muted); font-size: .82rem; font-weight: 400; }

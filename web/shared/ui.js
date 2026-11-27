@@ -78,7 +78,7 @@ export function select(options, value, change, attributes = {}) {
   return node;
 }
 
-export function chart(rows) {
+export function chart(rows, format = value => number(value) + " XLM") {
   if (rows.length < 2) return el('p', {class: 'muted'}, 'Для графика нужны минимум два снимка.');
   const values = rows.map(row => Number(row.balance));
   const low = Math.min(...values), high = Math.max(...values);
@@ -102,7 +102,7 @@ export function chart(rows) {
     index ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   });
   ctx.stroke();
-  return el('div', {}, canvas, el('div', {class: 'legend'}, date(rows[0].time), number(low) + ' – ' + number(high) + ' XLM', date(rows.at(-1).time)));
+  return el('div', {}, canvas, el('div', {class: 'legend'}, date(rows[0].time), format(low) + ' — ' + format(high), date(rows.at(-1).time)));
 }
 
 export async function json(path, version) {

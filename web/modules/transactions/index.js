@@ -1,4 +1,5 @@
-import {account, date, el, number, select, table, transaction} from '../../shared/ui.js';
+import {xlm} from '../../shared/money.js';
+import {account, date, el, select, table, transaction} from '../../shared/ui.js';
 
 const types = {payment: 'Перевод', create_account: 'Создание счёта', path_send: 'Маршрут · вход',
   path_receive: 'Маршрут · выход', create_claimable_balance: 'Резервирование', contract_transfer: 'Контракт · перевод',
@@ -7,7 +8,7 @@ const types = {payment: 'Перевод', create_account: 'Создание сч
 export function operationTable(rows, labels = {}) {
   const party = address => el('span', {}, account(address), labels[address]?.name ? ' · ' + labels[address].name : '');
   return table(['Время UTC', 'Тип', 'Сумма XLM', 'Отправитель', 'Получатель', 'Транзакция'],
-    rows.map(row => [date(row.time), types[row.kind] ?? row.kind, number(row.amount), party(row.sender),
+    rows.map(row => [date(row.time), types[row.kind] ?? row.kind, xlm(row.amount), party(row.sender),
       party(row.recipient), transaction(row.hash)]), 'На этой странице нет движений по выбранным фильтрам.');
 }
 
