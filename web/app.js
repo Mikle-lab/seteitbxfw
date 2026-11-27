@@ -126,7 +126,7 @@ function commitView(result) {
     else anchor.removeAttribute('aria-current');
   }
   const incomplete = !data.summary.periods[periodSelect.value].complete;
-  const coverageApplies = ['overview', 'whales', 'wallet', 'anomalies', 'transactions'].includes(rendered);
+  const coverageApplies = ['whales', 'wallet', 'anomalies', 'transactions'].includes(rendered);
   showNotice(incomplete && coverageApplies ? 'История за выбранный период пока неполная.' : '');
   status.textContent = statusLine(data.summary);
   document.querySelector('#spot').textContent = spotText(data.summary.spot_usd);

@@ -6,6 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from collector.analytics.activity import direct_interactions, inactivity
+from collector.analytics.balance_coverage import private_balance_periods
 from collector.analytics.payment_history import summarize_history
 from collector.analytics.portfolio import value_portfolio
 from collector.analytics.review import private_payment, private_signal, status
@@ -166,10 +167,11 @@ def build(data=Path("data"), target=Path("dist"), config=None):
     }
     write(public / "accumulation.json", dict(through=end.date().isoformat(), periods=payments_overview))
     active = [row for row in whales if row["active"]]
+    private_balance = private_balance_periods(cfg, wallets, snapshots, end, PERIODS)
     for period, cut in cuts.items():
         up = sum(stroops(row["periods"][period]["up"]) for row in whales)
         down = sum(stroops(row["periods"][period]["down"]) for row in whales)
-        metrics[period] = dict(up=xlm(up), down=xlm(down), net=xlm(up - down),
+        metrics[period] = dict(private_balance=private_balance[period], up=xlm(up), down=xlm(down), net=xlm(up - down),
                                large=sum(row["time"] >= cut for row in operations),
                                new=sum(row["kind"] == "new" and row["time"] >= cut for row in signals),
                                anomalies=sum(row["time"] >= cut for row in signals),
@@ -188,7 +190,7 @@ def build(data=Path("data"), target=Path("dist"), config=None):
     write(public / "summary.json", dict(schema=1, updated=state.get("last_success"), error=last_error,
           last_trigger=state.get("last_trigger"), scheduled=state.get("last_scheduled_success"),
           fallback=state.get("last_fallback_success"), automatic=state.get("last_automatic_success"),
-          coverage=state.get("coverage_from"), lag=state.get("lag_ledgers"), caught_up=state.get("caught_up"),
+          last_operation=activity_through, coverage=state.get("coverage_from"), lag=state.get("lag_ledgers"), caught_up=state.get("caught_up"),
           processed=state.get("processed", 0), processed_last=state.get("operations_last_run", 0),
           exported=end.isoformat(), active=len(active), discovered=len(whales),
           total=xlm(sum(stroops(row["balance"]) for row in active)), periods=metrics,
