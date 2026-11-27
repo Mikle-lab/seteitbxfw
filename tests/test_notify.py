@@ -33,8 +33,22 @@ class NotifyTests(unittest.TestCase):
         self.sent.assert_not_called()
         self.assertEqual(notify(self.store, LATER, self.sent), 1)
         self.assertIn("50000 XLM", self.sent.call_args.args[0])
+        self.assertNotIn("github.io", self.sent.call_args.args[0])
         self.assertEqual(notify(self.store, LATER, self.sent), 0)
         self.sent.assert_called_once()
+
+    def test_usd_uses_previous_close_and_keeps_wallet_link(self):
+        from test_collector import RECIPIENT
+
+        notify(self.store, ACTIVATED, self.sent)
+        write(self.archive.with_name("2026-11-26.json"), {"prices": {"2026-11-26": {"close": "0.125"}}})
+        write(self.archive, {"prices": {"2026-11-27": {"close": "0.500"}}, "signals": {
+            "drop": dict(alert("drop", "2026-11-27T14:03:00Z"), address=RECIPIENT, amount="-50000")
+        }})
+        notify(self.store, LATER, self.sent)
+        message = self.sent.call_args.args[0]
+        self.assertIn("-50000 XLM (≈ −$6 250,00, курс закрытия 26.11 UTC)", message)
+        self.assertTrue(message.endswith("https://stellar.expert/explorer/public/account/" + RECIPIENT))
 
     def test_failure_preserves_checkpoint(self):
         notify(self.store, ACTIVATED, self.sent)

@@ -1,6 +1,7 @@
 """Optional Telegram digest for persisted high-severity alerts."""
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from http.client import HTTPException, HTTPSConnection
 import json
 import os
@@ -10,7 +11,6 @@ import re
 from collector.model import valid_address
 from collector.storage import Store, load, write
 
-RADAR = "https://mikle-lab.github.io/seteitbxfw/#anomalies"
 LEVELS = {"high": "Высокая", "critical": "Критическая"}
 MAX_ALERTS = 8
 
@@ -41,18 +41,34 @@ def send_message(token, chat, message):
         connection.close()
 
 
-def digest(alerts):
+def closing_rate(archive, day):
+    for days_ago in range(1, 8):
+        previous = day - timedelta(days=days_ago)
+        data = load(archive / f"{previous}.json", {})
+        candle = data.get("prices", {}).get(previous.isoformat())
+        if candle:
+            return previous, Decimal(candle["close"])
+    return None
+
+
+def digest(alerts, rates):
     parts = ["XLM Radar · важные сигналы"]
     for row in alerts:
         reason = " ".join(str(row["reason"]).split())[:180]
         line = f'{LEVELS[row["level"]]} · {row["time"][:19].replace("T", " ")} UTC\n{reason}'
         if row.get("amount") is not None:
             line += f' · {row["amount"]} XLM'
+            rate = rates.get(row["time"][:10])
+            if rate is not None:
+                day, price = rate
+                amount = Decimal(row["amount"]) * price
+                dollars = f"{abs(amount):,.2f}".replace(",", " ").replace(".", ",")
+                sign = "−" if amount < 0 else ""
+                line += f" (≈ {sign}${dollars}, курс закрытия {day:%d.%m} UTC)"
         address = row.get("address")
         if valid_address(address):
             line += f"\nhttps://stellar.expert/explorer/public/account/{address}"
         parts.append(line)
-    parts.append(RADAR)
     return "\n\n".join(parts)
 
 
@@ -76,7 +92,9 @@ def notify(store, now, send):
                     pending[identifier] = row
     alerts = sorted(pending.values(), key=lambda row: (row["time"], row["id"]))[:MAX_ALERTS]
     if alerts:
-        send(digest(alerts))
+        dates = {row["time"][:10] for row in alerts if row.get("amount") is not None}
+        rates = {day: closing_rate(store.root / "archive", date.fromisoformat(day)) for day in dates}
+        send(digest(alerts, rates))
         confirmed.update((row["id"], row["time"]) for row in alerts)
     if alerts or confirmed != previous["sent"]:
         write(path, dict(enabled_since=enabled, sent=confirmed))
@@ -102,7 +120,7 @@ def main():
             return 1
         try:
             message_id = send_message(token, chat,
-                                      "Тест XLM Radar. Это проверка доставки уведомлений.\n" + RADAR)
+                                      "Тест XLM Radar. Это проверка доставки уведомлений.")
         except DeliveryError as error:
             print(str(error))
             return 1
