@@ -20,7 +20,9 @@ def balance_signals(address, previous, balance, now, batch, cfg):
     if previous and abs(delta) >= stroops(cfg["large_xlm"]) and abs(delta) * 100 >= previous * cfg["anomaly_percent"]:
         reason = "Резкий рост баланса" if delta > 0 else "Резкое сокращение баланса"
         level = "critical" if abs(delta) >= threshold and abs(delta) * 100 >= previous * 20 else "high"
-        yield record(prefix + ":jump", "balance_jump", level, reason, now, address, delta, percent)
+        alert = record(prefix + ":jump", "balance_jump", level, reason, now, address, delta, percent)
+        alert.update(balance_before=xlm(previous), balance_after=xlm(balance))
+        yield alert
     if previous >= threshold > balance:
         yield record(prefix + ":exit", "exit", "medium", "Баланс опустился ниже порога китов", now, address, delta, percent)
     elif balance >= threshold and balance > previous and category(balance, cfg) != category(previous, cfg):

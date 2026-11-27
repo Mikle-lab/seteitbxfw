@@ -43,11 +43,12 @@ class NotifyTests(unittest.TestCase):
         notify(self.store, ACTIVATED, self.sent)
         write(self.archive.with_name("2026-11-26.json"), {"prices": {"2026-11-26": {"close": "0.125"}}})
         write(self.archive, {"prices": {"2026-11-27": {"close": "0.500"}}, "signals": {
-            "drop": dict(alert("drop", "2026-11-27T14:03:00Z"), address=RECIPIENT, amount="-50000")
+            "drop": dict(alert("drop", "2026-11-27T14:03:00Z"), address=RECIPIENT, amount="-50000", balance_before="1200000", balance_after="1150000")
         }})
         notify(self.store, LATER, self.sent)
         message = self.sent.call_args.args[0]
         self.assertIn("-50000 XLM (≈ −$6 250,00, курс закрытия 26.11 UTC)", message)
+        self.assertIn("Баланс по сигналу: 1 200 000,00 → 1 150 000,00 XLM", message)
         self.assertTrue(message.endswith("https://stellar.expert/explorer/public/account/" + RECIPIENT))
 
     def test_failure_preserves_checkpoint(self):

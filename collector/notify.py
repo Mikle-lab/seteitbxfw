@@ -8,12 +8,14 @@ import os
 from pathlib import Path
 import re
 
+from collector.analytics.alert_context import amount_text, present, wallet_contexts
 from collector.analytics.review import private_signal
 from collector.model import valid_address
 from collector.storage import Store, load, write
 
 LEVELS = {"high": "Высокая", "critical": "Критическая"}
 MAX_ALERTS = 8
+TELEGRAM_LIMIT = 4096
 
 
 class DeliveryError(Exception):
@@ -52,7 +54,7 @@ def closing_rate(archive, day):
     return None
 
 
-def digest(alerts, rates):
+def digest(alerts, rates, contexts):
     parts = ["XLM Radar · важные сигналы"]
     for row in alerts:
         reason = " ".join(str(row["reason"]).split())[:180]
@@ -66,7 +68,13 @@ def digest(alerts, rates):
                 dollars = f"{abs(amount):,.2f}".replace(",", " ").replace(".", ",")
                 sign = "−" if amount < 0 else ""
                 line += f" (≈ {sign}${dollars}, курс закрытия {day:%d.%m} UTC)"
+        if row.get("balance_before") is not None and row.get("balance_after") is not None:
+            line += ("\nБаланс по сигналу: " + amount_text(row["balance_before"]) +
+                     " → " + amount_text(row["balance_after"]) + " XLM")
         address = row.get("address")
+        context = contexts.get(address)
+        if context:
+            line += "\n" + present(context)
         if valid_address(address):
             line += f"\nhttps://stellar.expert/explorer/public/account/{address}"
         parts.append(line)
@@ -96,7 +104,12 @@ def notify(store, now, send, config=None):
     if alerts:
         dates = {row["time"][:10] for row in alerts if row.get("amount") is not None}
         rates = {day: closing_rate(store.root / "archive", date.fromisoformat(day)) for day in dates}
-        send(digest(alerts, rates))
+        contexts = wallet_contexts(store.root, {row.get("address") for row in alerts}, now)
+        message = digest(alerts, rates, contexts)
+        while len(alerts) > 1 and len(message.encode("utf-16-le")) // 2 > TELEGRAM_LIMIT:
+            alerts.pop()
+            message = digest(alerts, rates, contexts)
+        send(message)
         confirmed.update((row["id"], row["time"]) for row in alerts)
     if alerts or confirmed != previous["sent"]:
         write(path, dict(enabled_since=enabled, sent=confirmed))
