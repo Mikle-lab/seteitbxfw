@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+from collector.market_export import build_markets
 from collector.model import stroops, valid_address, xlm
 from collector.storage import load, write
 
@@ -41,7 +42,7 @@ def build(data=Path("data"), target=Path("dist")):
         details = load(errors[-1], {})
         if details:
             last_error = max(details)
-    operations, signals, totals = [], [], []
+    operations, signals, totals, flows, fills, fill_totals = [], [], [], [], [], []
     snapshots = defaultdict(list)
     config_labels = cfg["labels"]
     wallets = state.get("wallets", {})
@@ -50,6 +51,10 @@ def build(data=Path("data"), target=Path("dist")):
         operations.extend(day.get("operations", {}).values())
         signals.extend(day.get("signals", {}).values())
         totals.extend(day.get("totals", {}).values())
+        flows.extend(day.get("exchange", {}).values())
+        day_fills = list(day.get("trades", {}).values())
+        fills.extend(day_fills)
+        fill_totals.extend(day.get("trade_summaries", {}).values() if "trade_summaries" in day else day_fills)
         for row in day.get("snapshots", {}).values():
             snapshots[row["address"]].append(row)
     operations, signals, totals = map(ordered, (operations, signals, totals))
@@ -106,6 +111,15 @@ def build(data=Path("data"), target=Path("dist")):
                                anomalies=sum(row["time"] >= cut for row in signals),
                                complete=bool(coverage and coverage <= timestamp(cut)),
                                chart=downsample([row for row in totals if row["time"] >= cut], 120))
+    markets = build_markets(state, config_labels, wallets, snapshots, flows, fills, cuts, downsample, fill_totals)
+    for period in metrics:
+        exchange = markets["exchanges"]["periods"][period]
+        dex = markets["dex"]["periods"][period]
+        metrics[period]["markets"] = dict(inflow=exchange["inflow"] if markets["exchanges"]["coverage"] else None,
+                                          outflow=exchange["outflow"] if markets["exchanges"]["coverage"] else None,
+                                          buy=dex["buy"] if markets["dex"]["coverage"] else None,
+                                          sell=dex["sell"] if markets["dex"]["coverage"] else None)
+    write(public / "markets.json", markets)
     indexed = sorted(whale_rows, key=lambda row: stroops(row["balance"]), reverse=True)
     write(public / "summary.json", dict(schema=1, updated=state.get("last_success"), error=last_error,
           coverage=state.get("coverage_from"), lag=state.get("lag_ledgers"), caught_up=state.get("caught_up"),

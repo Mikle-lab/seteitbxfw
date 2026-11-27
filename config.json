@@ -2,7 +2,8 @@
   "horizon": "https://horizon.stellar.org",
   "initial_ledgers": 160,
   "page_limit": 200,
-  "max_pages": 240,
+  "max_pages": 210,
+  "trade_pages": 45,
   "max_requests": 350,
   "requests_per_second": 8,
   "candidate_min_xlm": "1000",
@@ -12,8 +13,97 @@
   "large_xlm": "100000",
   "anomaly_percent": 5,
   "categories": [
-    ["Дельфин", "10000"], ["Акула", "100000"], ["Кит", "1000000"],
-    ["Крупный кит", "10000000"], ["Мегакит", "100000000"]
+    [
+      "Дельфин",
+      "10000"
+    ],
+    [
+      "Акула",
+      "100000"
+    ],
+    [
+      "Кит",
+      "1000000"
+    ],
+    [
+      "Крупный кит",
+      "10000000"
+    ],
+    [
+      "Мегакит",
+      "100000000"
+    ]
   ],
-  "labels": {}
+  "labels": {
+    "GBUTD5DNV43JBJP7AA657H2CYPUCAAFBXCKX7QE4XXGYIYFZZX2EKKVF": {
+      "name": "Binance.US",
+      "type": "exchange",
+      "confidence": "high",
+      "source": "https://downloads.coindesk.com/legal/SEC_BinanceUS%20Status%20Update%20March%205.pdf",
+      "evidence": "Appendix II: List of Wallet Addresses, XLM deposit"
+    },
+    "GBIBK4J7NA6EBCMD3PBSDQ3ATIKBEG3EQUCGNTEZXCW7D7GFNFFXOWNY": {
+      "name": "Binance",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GBIBK4J7NA6EBCMD3PBSDQ3ATIKBEG3EQUCGNTEZXCW7D7GFNFFXOWNY",
+      "evidence": "StellarExpert directory: Binance, custodian, exchange"
+    },
+    "GABFQIK63R2NETJM7T673EAMZN4RJLLGP3OFUEJU5SZVTGWUKULZJNL6": {
+      "name": "Binance Deposits",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GABFQIK63R2NETJM7T673EAMZN4RJLLGP3OFUEJU5SZVTGWUKULZJNL6",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GC5LF63GRVIT5ZXXCXLPI3RX2YXKJQFZVBSAO6AUELN3YIMSWPD6Z6FH": {
+      "name": "Binance Withdrawals",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GC5LF63GRVIT5ZXXCXLPI3RX2YXKJQFZVBSAO6AUELN3YIMSWPD6Z6FH",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GBAIA5U6E3FSRUW55AXACIVGX2QR5JYAS74OWLED3S22EGXVYEHPLGPA": {
+      "name": "Binance ColdStorage",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GBAIA5U6E3FSRUW55AXACIVGX2QR5JYAS74OWLED3S22EGXVYEHPLGPA",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GA5XIGA5C7QTPTWXQHY6MCJRMTRZDOSHR6EFIBNDQTCQHG262N4GGKTM": {
+      "name": "Kraken",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GA5XIGA5C7QTPTWXQHY6MCJRMTRZDOSHR6EFIBNDQTCQHG262N4GGKTM",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GAQZU7Y7GB3E4XOA3ZXEZDOTIEIWQRYOAIVJ6STY2YTUQAGZL3GYJCXG": {
+      "name": "Kraken",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GAQZU7Y7GB3E4XOA3ZXEZDOTIEIWQRYOAIVJ6STY2YTUQAGZL3GYJCXG",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GB6DQO6LDNGANIWKPA4E5Y6GRRFAP56Y2N3BIU54JQ3NT66L53RZCOM5": {
+      "name": "Kraken ColdStorage",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GB6DQO6LDNGANIWKPA4E5Y6GRRFAP56Y2N3BIU54JQ3NT66L53RZCOM5",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GA4IRJ52YGZQJDS7XJ375UGSI4FE4KQXHFYUUYNR5QXDVQNAXQTLRJAB": {
+      "name": "Coinbase",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GA4IRJ52YGZQJDS7XJ375UGSI4FE4KQXHFYUUYNR5QXDVQNAXQTLRJAB",
+      "evidence": "StellarExpert public directory, exchange tag"
+    },
+    "GAV6J5L473K4H6226IFNCAL7E5A2PR63YRCZDYJPTQH3S35YODXUUADV": {
+      "name": "Coinbase",
+      "type": "exchange",
+      "confidence": "medium",
+      "source": "https://stellar.expert/explorer/public/account/GAV6J5L473K4H6226IFNCAL7E5A2PR63YRCZDYJPTQH3S35YODXUUADV",
+      "evidence": "StellarExpert public directory, exchange tag"
+    }
+  }
 }

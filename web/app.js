@@ -69,7 +69,8 @@ async function section(source) {
     whales: () => whales(holders, period, whaleState, render),
     anomalies: () => feed(summary, period, 'anomalies'),
     transactions: () => feed(summary, period, 'operations'),
-    exchanges, dex,
+    exchanges: async () => exchanges((await cached('markets.json', summary)).exchanges, period, cutoff(summary, period), summary.labels),
+    dex: async () => dex((await cached('markets.json', summary)).dex, period),
     watchlist: () => watchlist(holders, period, render),
     settings: () => el('section', {}, el('h1', {}, 'Настройки'), el('p', {}, 'Порог крупного движения: ' +
       number(summary.threshold) + ' XLM. Порог и категории меняются в config.json репозитория.')),

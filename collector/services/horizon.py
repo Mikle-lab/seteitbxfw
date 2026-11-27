@@ -58,6 +58,10 @@ class Horizon:
         result = self.get("/operations", cursor=cursor, limit=limit, order="asc", include_failed="false")
         return result["_embedded"]["records"]
 
+    def trades(self, cursor, limit):
+        result = self.get("/trades", cursor=cursor, limit=limit, order="asc")
+        return result["_embedded"]["records"]
+
     def balance(self, address):
         account = self.get("/accounts/" + address, missing=True)
         if account is None:

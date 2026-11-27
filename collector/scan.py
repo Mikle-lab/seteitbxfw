@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from collector.analytics.markets import collect_trades, exchange_flow, summarize_fills, trade_key
 from collector.analytics.signals import balance_signals, record
 from collector.model import category, movements, stroops, valid_address, xlm
 from collector.services.horizon import Horizon
@@ -16,6 +17,10 @@ BALANCE_OPERATIONS = {
     "liquidity_pool_deposit", "liquidity_pool_withdraw", "manage_buy_offer",
     "manage_sell_offer", "create_passive_sell_offer",
 }
+
+
+TRADE_OPERATIONS = {"manage_buy_offer", "manage_sell_offer", "create_passive_sell_offer",
+                    "path_payment_strict_send", "path_payment_strict_receive"}
 
 
 def utc():
@@ -39,7 +44,9 @@ def scan(api, store, cfg, now):
 
     wallets = state["wallets"]
     queue = state["queue"]
-    events = {"operations": [], "signals": [], "snapshots": [], "totals": []}
+    sources = state.setdefault("trade_sources", {})
+    state.setdefault("exchange_coverage_from", state.get("last_operation") or state["coverage_from"])
+    events = {"operations": [], "signals": [], "snapshots": [], "totals": [], "exchange": [], "trades": [], "trade_summaries": []}
     large = stroops(cfg["large_xlm"])
     cutoff = stroops(cfg["candidate_min_xlm"])
     whale = stroops(cfg["whale_min_xlm"])
@@ -62,7 +69,18 @@ def scan(api, store, cfg, now):
             time = operation["created_at"]
             state["last_operation"] = time
             kind = operation["type"]
-            involved = {operation.get("source_account"), operation.get("into")}
+            source = operation.get("source_account")
+            if kind in TRADE_OPERATIONS and valid_address(source):
+                sources[token] = source
+            flow = exchange_flow(operation, cfg["labels"])
+            if flow:
+                events["exchange"].append(flow)
+                amount = stroops(flow["amount"])
+                if amount >= large:
+                    reason = "Крупный приток на биржевой адрес" if flow["direction"] == "in" else "Крупный отток с биржевого адреса"
+                    events["signals"].append(record(token + ":exchange", "exchange", "high", reason,
+                                                    time, flow["address"], amount))
+            involved = {source, operation.get("into")}
             for index, (movement, sender, recipient, units) in enumerate(movements(operation)):
                 amount = stroops(units)
                 if amount <= 0 or sender == recipient:
@@ -91,15 +109,39 @@ def scan(api, store, cfg, now):
             caught_up = True
             break
 
+    if cfg.get("trade_pages"):
+        try:
+            first_dex_time = state.get("last_operation") or now
+            if "trades" not in state["cursors"]:
+                ledger = api.get(f"/ledgers/{max(head - 30, 1)}")
+                first_dex_time = ledger["closed_at"]
+            trade_head = head if caught_up else int(cursor) >> 32
+            fills = collect_trades(api, state, first_dex_time, trade_head, now, cfg)
+            events["trades"], events["trade_summaries"] = summarize_fills(fills)
+            if not caught_up:
+                state["dex_caught_up"] = False
+        except (OSError, RuntimeError, ValueError) as error:
+            state["dex_error"] = now
+            print(f"DEX scan deferred: {error}", file=sys.stderr)
+    trade_cursor = state["cursors"].get("trades")
+    if trade_cursor:
+        boundary = trade_key(trade_cursor)[0]
+        sources = {token: owner for token, owner in sources.items() if int(token) >= boundary}
+    state["trade_sources"] = dict(sorted(sources.items(), key=lambda item: int(item[0]), reverse=True)[:15000])
+
     # Reserve capacity for both previously tracked accounts and new candidates.
     available = max(0, api.requests_remaining - 8)
+    tagged = sorted(address for address, label in cfg["labels"].items()
+                    if label.get("type") == "exchange" and valid_address(address))[:available]
+    available -= len(tagged)
     reserved = min(len(queue), available // 2)
     tracked_limit = min(cfg["tracked_refresh"], available - reserved)
-    tracked = sorted(wallets, key=lambda address: (wallets[address]["updated"], address))[:tracked_limit]
+    tracked = sorted(wallets.keys() - set(tagged),
+                     key=lambda address: (wallets[address]["updated"], address))[:tracked_limit]
     candidate_limit = min(cfg["candidate_checks"], available - len(tracked))
     selected = sorted(queue, key=lambda address: (-int(queue[address][0]), queue[address][1], address))[:candidate_limit]
     batch = hashlib.sha256((cursor + ":" + now).encode()).hexdigest()[:20]
-    for address in dict.fromkeys(tracked + selected):
+    for address in dict.fromkeys(tagged + tracked + selected):
         balance = api.balance(address)
         candidate = queue.pop(address, None)
         previous = wallets.get(address)
