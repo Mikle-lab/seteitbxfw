@@ -3,7 +3,7 @@
   "initial_ledgers": 160,
   "page_limit": 200,
   "max_pages": 210,
-  "trade_pages": 45,
+  "trade_pages": 110,
   "max_requests": 350,
   "requests_per_second": 8,
   "candidate_min_xlm": "1000",
