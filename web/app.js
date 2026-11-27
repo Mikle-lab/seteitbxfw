@@ -7,6 +7,7 @@ import {anomalyTable, filters as anomalyFilters} from './modules/anomalies/index
 import {watchlist} from './modules/watchlist/index.js';
 import {exchanges} from './modules/exchanges/index.js';
 import {dex} from './modules/dex/index.js';
+import {trendView} from './modules/trends/index.js';
 
 const view = document.querySelector('#view');
 const status = document.querySelector('#status');
@@ -17,6 +18,7 @@ const hours = {'1h': 1, '24h': 24, '7d': 168, '30d': 720, '90d': 2160};
 const whaleState = {sort: 'balance', exited: false, page: 0};
 const ops = {page: 0, min: '', max: '', address: '', kind: '', direction: 'any'};
 const anomalies = {page: 0, level: ''};
+let trendWindow = '7d';
 let data, rendered, generation = 0, updateTime, cache = new Map(), refreshing = false;
 
 function cutoff(summary, period) {
@@ -31,7 +33,8 @@ function statusLine(summary) {
     summary.lag > 0 ? 'Догоняет сеть · ' + number(summary.lag) + ' реестров' :
     freshness > 20 ? 'Данные устарели' : 'Сканирование выполнено';
   return state + ' · ' + date(summary.updated) + ' UTC · ' + number(freshness) + ' мин · ' +
-    number(summary.processed) + ' операций прочитано · интерфейс ' + date(updateTime) + ' UTC';
+    number(summary.processed) + ' операций прочитано · интерфейс ' + date(updateTime) + ' UTC' +
+    (summary.scheduled ? ' · по расписанию ' + date(summary.scheduled) + ' UTC' : ' · запуск по расписанию пока не подтверждён');
 }
 
 function cached(path, summary) {
@@ -66,6 +69,10 @@ async function section(source) {
   const period = periodSelect.value;
   const routes = {
     overview: () => dashboard(summary, period),
+    trends: async () => trendView(await cached('trends.json', summary), trendWindow, value => {
+      trendWindow = value;
+      render();
+    }),
     whales: () => whales(holders, period, whaleState, render),
     anomalies: () => feed(summary, period, 'anomalies'),
     transactions: () => feed(summary, period, 'operations'),

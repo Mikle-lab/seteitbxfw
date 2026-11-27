@@ -12,6 +12,7 @@
   "whale_min_xlm": "1000000",
   "large_xlm": "100000",
   "anomaly_percent": 5,
+  "daily_anomaly_min_xlm": "25000",
   "categories": [
     [
       "Дельфин",

@@ -2,12 +2,14 @@
 import argparse
 import hashlib
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from collector.analytics.markets import collect_trades, exchange_flow, summarize_fills, trade_key
 from collector.analytics.signals import balance_signals, record
+from collector.analytics.trends import closed_day_signals
 from collector.model import category, movements, stroops, valid_address, xlm
 from collector.services.horizon import Horizon
 from collector.storage import Store, load, write
@@ -180,6 +182,13 @@ def scan(api, store, cfg, now):
     state["cursors"]["operations"] = cursor
     state.update(last_success=now, operations_last_run=count, head_ledger=head,
                  lag_ledgers=0 if caught_up else max(0, head - (int(cursor) >> 32)), caught_up=caught_up)
+    trigger = os.environ.get("GITHUB_EVENT_NAME")
+    if trigger:
+        state["last_trigger"] = trigger
+        if trigger == "schedule":
+            state["last_scheduled_success"] = now
+    events["signals"].extend(closed_day_signals(state, store, events["snapshots"], now,
+                                               stroops(cfg.get("daily_anomaly_min_xlm", "25000"))))
     store.commit(state, events)
     return state
 

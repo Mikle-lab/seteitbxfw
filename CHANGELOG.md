@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- UTC daily balance changes and complete-window rankings for 7 and 30 days.
+- Per-wallet statistical balance alerts, with minimum history and stable event identifiers.
+- Published status distinguishes successful scheduled scans from other triggers.
+
 ## 0.2.0
 
 - Exchange wallet registry, observed native XLM flows, balance history and large exchange alerts.

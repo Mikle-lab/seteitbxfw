@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+from collector.analytics.trends import build_trends
 from collector.market_export import build_markets
 from collector.model import stroops, valid_address, xlm
 from collector.storage import load, write
@@ -68,6 +69,8 @@ def build(data=Path("data"), target=Path("dist")):
 
     cuts = {key: (end - timedelta(hours=hours) if hours else coverage or end).isoformat().replace("+00:00", "Z")
             for key, hours in PERIODS.items()}
+    trend_periods, wallet_trends = build_trends(wallets, snapshots, end.date())
+    write(public / "trends.json", dict(through=(end.date() - timedelta(days=1)).isoformat(), periods=trend_periods))
     metrics = {}
     whale_rows = []
     for address, wallet in wallets.items():
@@ -97,7 +100,7 @@ def build(data=Path("data"), target=Path("dist")):
         whale_row = dict(address=address, **wallet, periods=stats)
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,
-              operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
+              trends=wallet_trends[address], operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
               counterparts=counterparts.most_common(12)))
 
     whales = [row for row in whale_rows if not row["label"]]
@@ -122,6 +125,7 @@ def build(data=Path("data"), target=Path("dist")):
     write(public / "markets.json", markets)
     indexed = sorted(whale_rows, key=lambda row: stroops(row["balance"]), reverse=True)
     write(public / "summary.json", dict(schema=1, updated=state.get("last_success"), error=last_error,
+          last_trigger=state.get("last_trigger"), scheduled=state.get("last_scheduled_success"),
           coverage=state.get("coverage_from"), lag=state.get("lag_ledgers"), caught_up=state.get("caught_up"),
           processed=state.get("processed", 0), processed_last=state.get("operations_last_run", 0),
           exported=end.isoformat(), active=len(active), discovered=len(whales),
