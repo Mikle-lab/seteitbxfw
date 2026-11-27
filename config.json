@@ -13,6 +13,7 @@
   "large_xlm": "100000",
   "anomaly_percent": 5,
   "inactive_days": 30,
+  "collect_usd_prices": true,
   "daily_anomaly_min_xlm": "25000",
   "categories": [
     [

@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.3.1
+- Daily Coinbase Exchange XLM/USD closes aligned with UTC wallet balance changes.
 
 - Wallet inactivity based on scanned operations, a dormant filter, and activity-resumption alerts.
 - Repeated direct XLM transfers with transaction evidence and no ownership inference.

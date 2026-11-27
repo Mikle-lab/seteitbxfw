@@ -15,7 +15,7 @@ from collector.storage import Store, load, write
 from urllib.error import HTTPError
 
 CFG = json.loads(Path("config.json").read_text())
-CFG.update(trade_pages=0, labels={})
+CFG.update(trade_pages=0, labels={}, collect_usd_prices=False)
 NOW = "2026-11-27T12:00:00Z"
 LATER = "2026-11-27T12:06:00Z"
 

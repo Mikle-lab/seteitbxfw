@@ -8,6 +8,7 @@ from pathlib import Path
 from collector.analytics.activity import direct_interactions, inactivity
 from collector.analytics.trends import build_trends
 from collector.market_export import build_markets
+from collector.services.prices import SOURCE, price_history
 from collector.model import stroops, valid_address, xlm
 from collector.storage import load, write
 
@@ -45,6 +46,7 @@ def build(data=Path("data"), target=Path("dist")):
         if details:
             last_error = max(details)
     operations, signals, totals, flows, fills, fill_totals = [], [], [], [], [], []
+    prices = []
     snapshots = defaultdict(list)
     config_labels = cfg["labels"]
     wallets = state.get("wallets", {})
@@ -54,6 +56,7 @@ def build(data=Path("data"), target=Path("dist")):
         signals.extend(day.get("signals", {}).values())
         totals.extend(day.get("totals", {}).values())
         flows.extend(day.get("exchange", {}).values())
+        prices.extend(day.get("prices", {}).values())
         day_fills = list(day.get("trades", {}).values())
         fills.extend(day_fills)
         fill_totals.extend(day.get("trade_summaries", {}).values() if "trade_summaries" in day else day_fills)
@@ -71,7 +74,10 @@ def build(data=Path("data"), target=Path("dist")):
     cuts = {key: (end - timedelta(hours=hours) if hours else coverage or end).isoformat().replace("+00:00", "Z")
             for key, hours in PERIODS.items()}
     trend_periods, wallet_trends = build_trends(wallets, snapshots, end.date())
-    write(public / "trends.json", dict(through=(end.date() - timedelta(days=1)).isoformat(), periods=trend_periods))
+    price_rows = price_history(prices)
+    prices_by_day = {row["day"]: row for row in price_rows}
+    write(public / "trends.json", dict(through=(end.date() - timedelta(days=1)).isoformat(), periods=trend_periods,
+                                       prices=price_rows[-30:], price_source=SOURCE, price_error=state.get("price_error")))
     threshold_days = cfg.get("inactive_days", 30)
     activity_through = state.get("last_operation")
     interactions = direct_interactions(operations, wallets, cuts["30d"])
@@ -107,6 +113,9 @@ def build(data=Path("data"), target=Path("dist")):
                                  percent=float(round(Decimal(up - down) * 100 / baseline, 2)) if baseline else None,
                                  received=xlm(received), sent=xlm(sent), operations=len(movements),
                                  anomalies=sum(row["time"] >= cut for row in signals_by_wallet[address]))
+        for interval in wallet_trends[address].values():
+            for row in interval["daily"]:
+                row["price"] = prices_by_day.get(row["day"])
         whale_row = dict(address=address, **wallet, periods=stats, inactivity=inactivity(wallet, activity_through, threshold_days))
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,

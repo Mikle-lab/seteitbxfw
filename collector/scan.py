@@ -13,6 +13,7 @@ from collector.analytics.signals import balance_signals, record
 from collector.analytics.trends import closed_day_signals
 from collector.model import category, movements, stroops, valid_address, xlm
 from collector.services.horizon import Horizon
+from collector.services.prices import collect_prices
 from collector.storage import Store, load, write
 
 BALANCE_OPERATIONS = {
@@ -49,7 +50,7 @@ def scan(api, store, cfg, now):
     queue = state["queue"]
     sources = state.setdefault("trade_sources", {})
     state.setdefault("exchange_coverage_from", state.get("last_operation") or state["coverage_from"])
-    events = {"operations": [], "signals": [], "snapshots": [], "totals": [], "exchange": [], "trades": [], "trade_summaries": []}
+    events = {"operations": [], "signals": [], "snapshots": [], "totals": [], "exchange": [], "trades": [], "trade_summaries": [], "prices": []}
     large = stroops(cfg["large_xlm"])
     cutoff = stroops(cfg["candidate_min_xlm"])
     whale = stroops(cfg["whale_min_xlm"])
@@ -193,6 +194,12 @@ def scan(api, store, cfg, now):
             state["last_scheduled_success"] = now
     events["signals"].extend(closed_day_signals(state, store, events["snapshots"], now,
                                                stroops(cfg.get("daily_anomaly_min_xlm", "25000"))))
+    if cfg.get("collect_usd_prices"):
+        try:
+            events["prices"] = collect_prices(state, now)
+        except (OSError, ValueError, ArithmeticError) as error:
+            state["price_error"] = now
+            print(f"USD price update deferred: {error}", file=sys.stderr)
     store.commit(state, events)
     return state
 
