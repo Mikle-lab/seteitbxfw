@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#101519">
+  <title>XLM Radar — мониторинг Stellar</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#overview"><span class="mark" aria-hidden="true">✳</span> XLM Radar</a>
+    <div class="top-actions"><span class="network">Stellar · Mainnet</span><button id="refresh" type="button">Обновить</button></div>
+  </header>
+  <div class="shell">
+    <nav aria-label="Разделы">
+      <a href="#overview">Обзор</a><a href="#whales">Киты</a><a href="#anomalies">Аномалии</a>
+      <a href="#transactions">Транзакции</a><a href="#exchanges">Биржи</a><a href="#dex">DEX</a>
+      <a href="#watchlist">Избранное</a><a href="#settings">Настройки</a>
+    </nav>
+    <main>
+      <div class="toolbar">
+        <div id="status" role="status">Загрузка данных…</div>
+        <label for="period">Период</label>
+        <select id="period"><option value="1h">1 час</option><option value="24h" selected>24 часа</option><option value="7d">7 дней</option><option value="30d">30 дней</option><option value="90d">90 дней</option><option value="all">Вся история</option></select>
+      </div>
+      <p id="notice" role="status" hidden></p>
+      <div id="view"></div>
+      <noscript>Включите JavaScript для просмотра данных.</noscript>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,67 @@
+name: XLM Radar
+on:
+  schedule:
+    - cron: '2-59/6 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['data/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xlm-radar-main
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    outputs:
+      result: ${{ steps.collect.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run automated tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Collect Stellar activity
+        id: collect
+        continue-on-error: true
+        run: python3 -m collector.scan
+      - name: Persist collector state
+        run: |
+          git add data
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Update Stellar scan data"
+            git push origin HEAD:main
+          fi
+      - name: Build static site
+        run: python3 -m collector.export
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: scan
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: pages
+
+  report:
+    needs: [scan, deploy]
+    if: always() && needs.scan.outputs.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::Stellar scan failed; the previous successful checkpoint was retained."
+          exit 1

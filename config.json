@@ -1,0 +1,19 @@
+{
+  "horizon": "https://horizon.stellar.org",
+  "initial_ledgers": 160,
+  "page_limit": 200,
+  "max_pages": 240,
+  "max_requests": 880,
+  "requests_per_second": 8,
+  "candidate_min_xlm": "1000",
+  "candidate_checks": 350,
+  "tracked_refresh": 130,
+  "whale_min_xlm": "1000000",
+  "large_xlm": "100000",
+  "anomaly_percent": 5,
+  "categories": [
+    ["Дельфин", "10000"], ["Акула", "100000"], ["Кит", "1000000"],
+    ["Крупный кит", "10000000"], ["Мегакит", "100000000"]
+  ],
+  "labels": {}
+}
