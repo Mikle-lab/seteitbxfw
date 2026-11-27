@@ -19,6 +19,8 @@ function privateWhales(balance) {
   if (!balance || balance.status === 'insufficient') {
     return el('section', {class: 'panel'}, title,
       el('p', {}, 'Недостаточно истории'),
+      balance ? el('p', {class: 'muted'}, '0 из ' + number(balance.approved) +
+        ' допущенных адресов имеют сопоставимые замеры') : null,
       el('p', {class: 'muted'}, 'Для выбранного периода нужны сопоставимые замеры у обеих границ.'), whales);
   }
 
