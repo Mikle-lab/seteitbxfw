@@ -22,22 +22,39 @@ jobs:
     permissions:
       contents: write
     outputs:
-      result: ${{ steps.collect.outcome }}
+      result: ${{ steps.collect.outputs.result }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: Run automated tests
         run: python3 -m unittest discover -s tests -v
-      - name: Collect Stellar activity
+      - name: Collect and persist Stellar activity
         id: collect
-        continue-on-error: true
-        run: python3 -m collector.scan
-      - name: Persist collector state
         run: |
-          git add data
-          if ! git diff --cached --quiet; then
+          for attempt in 1 2 3; do
+            result=success
+            if ! python3 -m collector.scan; then
+              result=failure
+            fi
+            git add data
+            if git diff --cached --quiet; then
+              echo "result=$result" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            base=$(git rev-parse HEAD)
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Update Stellar scan data"
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              echo "result=$result" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git fetch --no-tags origin main
+            latest=$(git rev-parse FETCH_HEAD)
+            if [ "$latest" = "$base" ] || [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            git reset --hard "$latest"
+          done
       - name: Build static site
         run: python3 -m collector.export
       - uses: actions/upload-pages-artifact@v3
