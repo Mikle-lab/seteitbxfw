@@ -35,7 +35,8 @@ function statusLine(summary) {
     freshness > 20 ? 'Данные устарели' : 'Сканирование выполнено';
   return state + ' · ' + date(summary.updated) + ' UTC · ' + number(freshness) + ' мин · ' +
     number(summary.processed) + ' операций прочитано · интерфейс ' + date(updateTime) + ' UTC' +
-    (summary.scheduled ? ' · по расписанию ' + date(summary.scheduled) + ' UTC' : ' · запуск по расписанию пока не подтверждён') +
+    (summary.automatic ? ' · автосбор ' + date(summary.automatic) + ' UTC' :
+      summary.scheduled ? ' · по расписанию ' + date(summary.scheduled) + ' UTC' : ' · запуск по расписанию пока не подтверждён') +
     (summary.fallback ? ' · резервный сбор ' + date(summary.fallback) + ' UTC' : '');
 }
 

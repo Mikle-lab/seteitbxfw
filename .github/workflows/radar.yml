@@ -1,9 +1,14 @@
 name: XLM Radar
+run-name: ${{ inputs.auto_at != '' && format('XLM Radar automatic · {0}', inputs.auto_at) || 'XLM Radar' }}
 on:
   schedule:
     - cron: '2,8,14,20,26,32,38,44,50,56 * * * *'
   workflow_dispatch:
     inputs:
+      auto_at:
+        description: UTC Unix slot for the automatic continuation
+        type: string
+        default: ''
       only_if_stale:
         description: Skip when the last successful scan is under 15 minutes old
         type: boolean
@@ -21,7 +26,7 @@ concurrency:
 
 jobs:
   scan:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (inputs.auto_at == '' || vars.RADAR_AUTORUN != 'off')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -34,8 +39,10 @@ jobs:
           ref: main
       - name: Check backup dispatch freshness
         id: freshness
-        if: github.event_name == 'workflow_dispatch' && inputs.only_if_stale
-        run: echo "fresh=$(python3 -m collector.freshness)" >> "$GITHUB_OUTPUT"
+        if: inputs.only_if_stale || inputs.auto_at != '' || github.event_name == 'schedule'
+        env:
+          MINUTES: ${{ inputs.only_if_stale && '15' || '4' }}
+        run: echo "fresh=$(python3 -m collector.freshness --minutes "$MINUTES")" >> "$GITHUB_OUTPUT"
       - name: Run automated tests
         if: steps.freshness.outputs.fresh != 'true'
         run: python3 -m unittest discover -s tests -v
@@ -43,6 +50,7 @@ jobs:
         id: collect
         if: steps.freshness.outputs.fresh != 'true'
         env:
+          RADAR_AUTOMATIC: ${{ inputs.auto_at != '' }}
           RADAR_FALLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.only_if_stale }}
         run: |
           for attempt in 1 2 3; do
@@ -120,6 +128,30 @@ jobs:
               git push origin HEAD:main
             fi
           fi
+
+  continue-schedule:
+    if: github.ref == 'refs/heads/main' && inputs.auto_at != '' && vars.RADAR_AUTORUN != 'off'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Schedule next automatic scan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLOT: ${{ inputs.auto_at }}
+        run: |
+          next=$(python3 -m collector.timing "$SLOT")
+          wait_seconds=$((next - $(date +%s)))
+          if [ "$wait_seconds" -gt 0 ]; then
+            sleep "$wait_seconds"
+          fi
+          gh workflow run radar.yml --repo "$GITHUB_REPOSITORY" --ref main -f "auto_at=$next"
+          echo "Queued automatic scan for UTC slot $next."
 
   report:
     needs: [scan, deploy]

@@ -188,12 +188,17 @@ def scan(api, store, cfg, now):
     state.update(last_success=now, operations_last_run=count, head_ledger=head,
                  lag_ledgers=0 if caught_up else max(0, head - (int(cursor) >> 32)), caught_up=caught_up)
     trigger = os.environ.get("GITHUB_EVENT_NAME")
-    if trigger == "workflow_dispatch" and os.environ.get("RADAR_FALLBACK") == "true":
-        trigger = "fallback"
+    if trigger == "workflow_dispatch":
+        if os.environ.get("RADAR_AUTOMATIC") == "true":
+            trigger = "automatic"
+        elif os.environ.get("RADAR_FALLBACK") == "true":
+            trigger = "fallback"
     if trigger:
         state["last_trigger"] = trigger
         if trigger == "schedule":
             state["last_scheduled_success"] = now
+        if trigger == "automatic":
+            state["last_automatic_success"] = now
         if trigger == "fallback":
             state["last_fallback_success"] = now
     events["signals"].extend(closed_day_signals(state, store, events["snapshots"], now,
