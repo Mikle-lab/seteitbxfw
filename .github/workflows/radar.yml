@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '2,8,14,20,26,32,38,44,50,56 * * * *'
   workflow_dispatch:
+    inputs:
+      only_if_stale:
+        description: Skip when the last successful scan is under 15 minutes old
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths-ignore: ['data/**']
@@ -27,10 +32,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - name: Check backup dispatch freshness
+        id: freshness
+        if: github.event_name == 'workflow_dispatch' && inputs.only_if_stale
+        run: echo "fresh=$(python3 -m collector.freshness)" >> "$GITHUB_OUTPUT"
       - name: Run automated tests
+        if: steps.freshness.outputs.fresh != 'true'
         run: python3 -m unittest discover -s tests -v
       - name: Collect and persist Stellar activity
         id: collect
+        if: steps.freshness.outputs.fresh != 'true'
+        env:
+          RADAR_FALLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.only_if_stale }}
         run: |
           for attempt in 1 2 3; do
             result=success
@@ -56,13 +69,16 @@ jobs:
             git reset --hard "$latest"
           done
       - name: Build static site
+        if: steps.freshness.outputs.fresh != 'true'
         run: python3 -m collector.export
       - uses: actions/upload-pages-artifact@v3
+        if: steps.freshness.outputs.fresh != 'true'
         with:
           path: dist
 
   deploy:
     needs: scan
+    if: needs.scan.outputs.result != ''
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -73,6 +89,37 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: pages
+
+  telegram:
+    needs: [scan, deploy]
+    if: needs.scan.outputs.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Deliver recent high-severity alerts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 -m collector.notify
+      - name: Persist Telegram checkpoint
+        run: |
+          if [ ! -f data/notifications.json ]; then
+            exit 0
+          fi
+          git add data/notifications.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Update Telegram delivery checkpoint"
+            if ! git push origin HEAD:main; then
+              git fetch --no-tags origin main
+              git rebase FETCH_HEAD
+              git push origin HEAD:main
+            fi
+          fi
 
   report:
     needs: [scan, deploy]

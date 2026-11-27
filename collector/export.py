@@ -145,6 +145,7 @@ def build(data=Path("data"), target=Path("dist")):
     indexed = sorted(whale_rows, key=lambda row: stroops(row["balance"]), reverse=True)
     write(public / "summary.json", dict(schema=1, updated=state.get("last_success"), error=last_error,
           last_trigger=state.get("last_trigger"), scheduled=state.get("last_scheduled_success"),
+          fallback=state.get("last_fallback_success"),
           coverage=state.get("coverage_from"), lag=state.get("lag_ledgers"), caught_up=state.get("caught_up"),
           processed=state.get("processed", 0), processed_last=state.get("operations_last_run", 0),
           exported=end.isoformat(), active=len(active), discovered=len(whales),

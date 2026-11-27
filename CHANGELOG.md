@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- Optional Telegram digest with secret-based setup and delivery checkpoint.
+- Freshness guard for backup dispatches, with separate reporting for successful fallback scans.
+
 ## 0.3.1
 - Daily Coinbase Exchange XLM/USD closes aligned with UTC wallet balance changes.
 
