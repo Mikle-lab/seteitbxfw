@@ -50,8 +50,8 @@ class NotifyTests(unittest.TestCase):
         with patch("collector.notify.HTTPSConnection") as connection:
             transport = connection.return_value
             transport.getresponse.return_value = Mock(status=200)
-            transport.getresponse.return_value.read.return_value = b'{"ok":true}'
-            send_message("123:fixture", "-456", "Тест")
+            transport.getresponse.return_value.read.return_value = b'{"ok":true,"result":{"message_id":42}}'
+            self.assertEqual(send_message("123:fixture", "-456", "Тест"), 42)
             method, path, body, _ = transport.request.call_args.args
             self.assertEqual((method, path), ("POST", "/bot123:fixture/sendMessage"))
             self.assertEqual(json.loads(body)["text"], "Тест")

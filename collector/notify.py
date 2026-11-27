@@ -28,8 +28,13 @@ def send_message(token, chat, message):
         response = connection.getresponse()
         if response.status != 200:
             raise DeliveryError(f"Telegram returned HTTP {response.status}")
-        if json.loads(response.read(65536)).get("ok") is not True:
+        result = json.loads(response.read(65536))
+        if result.get("ok") is not True:
             raise DeliveryError("Telegram did not confirm the message")
+        message_id = result.get("result", {}).get("message_id")
+        if type(message_id) is not int or message_id < 1:
+            raise DeliveryError("Telegram did not return a message ID")
+        return message_id
     except (OSError, HTTPException, ValueError, AttributeError):
         raise DeliveryError("Telegram transport failed") from None
     finally:
@@ -81,15 +86,28 @@ def notify(store, now, send):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, default=Path("data"))
+    parser.add_argument("--test-channel", help="Send one test message to the matching configured public channel")
     args = parser.parse_args()
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if not token and not chat:
         print("Telegram notification secrets are unset. Delivery is disabled.")
-        return 0
+        return 1 if args.test_channel else 0
     if not re.fullmatch(r"\d+:[A-Za-z0-9_-]+", token) or not re.fullmatch(r"-?\d+|@[A-Za-z0-9_]{5,}", chat):
         print("Configure both Telegram secrets with a bot token and numeric chat ID or channel username.")
         return 1
+    if args.test_channel:
+        if not chat.startswith("@") or args.test_channel.casefold() != chat.casefold():
+            print("Configured Telegram channel does not match the requested public channel.")
+            return 1
+        try:
+            message_id = send_message(token, chat,
+                                      "Тест XLM Radar. Это проверка доставки уведомлений.\n" + RADAR)
+        except DeliveryError as error:
+            print(str(error))
+            return 1
+        print(f"Telegram confirmed test message {message_id}.")
+        return 0
     store = Store(args.data)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     try:

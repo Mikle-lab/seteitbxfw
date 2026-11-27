@@ -1,0 +1,25 @@
+name: XLM Radar Telegram test
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Configured public Telegram channel, including @
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  send-test:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Send one Telegram test message
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_CHANNEL: ${{ inputs.channel }}
+        run: python3 -m collector.notify --test-channel="$TEST_CHANNEL"
