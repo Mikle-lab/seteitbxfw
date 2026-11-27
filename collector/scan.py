@@ -47,6 +47,8 @@ def scan(api, store, cfg, now):
     caught_up = False
 
     for _ in range(cfg["max_pages"]):
+        if api.requests_remaining <= 15:
+            break
         rows = api.operations(cursor, cfg["page_limit"])
         for operation in rows:
             if int(operation["paging_token"]) >> 32 > head:
@@ -90,8 +92,12 @@ def scan(api, store, cfg, now):
             break
 
     # Reserve capacity for both previously tracked accounts and new candidates.
-    tracked = sorted(wallets, key=lambda address: (wallets[address]["updated"], address))[:cfg["tracked_refresh"]]
-    selected = sorted(queue, key=lambda address: (-int(queue[address][0]), queue[address][1], address))[:cfg["candidate_checks"]]
+    available = max(0, api.requests_remaining - 8)
+    reserved = min(len(queue), available // 2)
+    tracked_limit = min(cfg["tracked_refresh"], available - reserved)
+    tracked = sorted(wallets, key=lambda address: (wallets[address]["updated"], address))[:tracked_limit]
+    candidate_limit = min(cfg["candidate_checks"], available - len(tracked))
+    selected = sorted(queue, key=lambda address: (-int(queue[address][0]), queue[address][1], address))[:candidate_limit]
     batch = hashlib.sha256((cursor + ":" + now).encode()).hexdigest()[:20]
     for address in dict.fromkeys(tracked + selected):
         balance = api.balance(address)

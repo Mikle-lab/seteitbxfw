@@ -16,6 +16,10 @@ class Horizon:
         self.attempts = 0
         self.next_request = 0
 
+    @property
+    def requests_remaining(self):
+        return self.limit - self.attempts
+
     def get(self, path, *, missing=False, **params):
         url = self.base + path
         if params:

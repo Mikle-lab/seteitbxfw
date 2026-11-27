@@ -27,4 +27,6 @@ python3 -m http.server 3000 --directory dist
 
 `collector.export` формирует публичную схему 1: сводку, компактный индекс кошельков, отдельные карточки и страницы операций и сигналов по 250 записей. Браузер подгружает выбранную страницу и не скачивает архив целиком. Курсоры, очередь и технические ошибки в артефакт сайта не входят. Нарастающий архив следует контролировать перед достижением лимитов GitHub. Формат публичной выгрузки можно сохранить при переносе источника в БД.
 
+Лимит сборщика по умолчанию составляет 350 HTTP-запросов на запуск, включая повторные попытки. Horizon ограничивает запросы по IP; стандартная настройка сервера составляет 3 600 запросов в час и может меняться у оператора. При 429 сборщик учитывает Retry-After и увеличивает задержку повторов. [Лимиты Horizon](https://developers.stellar.org/docs/data/apis/horizon/api-reference/structure/rate-limiting)
+
 Документация Stellar: [операции](https://developers.stellar.org/docs/data/apis/horizon/api-reference/list-all-operations), [аккаунты](https://developers.stellar.org/docs/data/apis/horizon/api-reference/resources/accounts/index), [Horizon](https://developers.stellar.org/docs/data/apis/horizon).

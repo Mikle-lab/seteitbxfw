@@ -32,6 +32,8 @@ PAYMENT = dict(paging_token=TOKEN, type="payment", source_account=SENDER, create
 
 
 class Fixture:
+    requests_remaining = 350
+
     def __init__(self):
         self.amount = stroops("1500000")
         self.fail = False
@@ -127,6 +129,18 @@ class CollectorTests(unittest.TestCase):
     def test_anomaly_requires_both_thresholds(self):
         signals = list(balance_signals(SENDER, stroops("10000000"), stroops("10100000"), NOW, "id", CFG))
         self.assertFalse(any(row["kind"] == "balance_jump" for row in signals))
+
+    def test_low_request_budget_defers_candidates_without_skipping_the_cursor(self):
+        self.api.requests_remaining = 16
+        cfg = dict(CFG, candidate_checks=0)
+        with self.store.locked():
+            first = scan(self.api, self.store, cfg, NOW)
+        self.assertEqual(first["cursors"]["operations"], TOKEN)
+        self.assertIn(RECIPIENT, first["queue"])
+        self.assertNotIn(RECIPIENT, first["wallets"])
+        again = self.run_scan(LATER)
+        self.assertIn(RECIPIENT, again["wallets"])
+        self.assertNotIn(RECIPIENT, again["queue"])
 
     def test_rate_limit_respects_retry_after(self):
         client = Horizon(CFG)
