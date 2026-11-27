@@ -8,7 +8,7 @@ export function wallet(data, period, cutoff, labels) {
   const {wallet, history, operations, anomalies, counterparts} = data;
   const stats = wallet.periods[period];
   return el('section', {}, el('h1', {}, 'Кошелёк'),
-    el('div', {class: 'account'}, account(wallet.address, true), star(wallet.address)),
+    el('div', {class: 'account wallet-actions'}, account(wallet.address, true), star(wallet.address)),
     el('p', {class: 'muted break'}, wallet.address + ' · ' + (wallet.label?.name ?? wallet.category)),
     el('div', {class: 'grid'}, tile('Баланс XLM', number(wallet.balance)), tile('Минимум XLM', number(wallet.minimum)),
       tile('Максимум XLM', number(wallet.maximum)), tile('Изменение XLM', signed(stats.delta)),

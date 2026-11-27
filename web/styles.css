@@ -84,3 +84,8 @@ meter { width: 100%; grid-column: 1 / -1; height: .5rem; accent-color: var(--acc
   .tile { padding: .45rem; }
   .tile strong { overflow-wrap: anywhere; }
 }
+
+.wallet-actions, .wallet-actions .account {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
