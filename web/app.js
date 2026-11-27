@@ -8,6 +8,7 @@ import {watchlist} from './modules/watchlist/index.js';
 import {exchanges} from './modules/exchanges/index.js';
 import {dex} from './modules/dex/index.js';
 import {interactionsView} from './modules/activity/index.js';
+import {accumulationView} from './modules/accumulation/index.js';
 import {trendView} from './modules/trends/index.js';
 
 const view = document.querySelector('#view');
@@ -20,6 +21,7 @@ const whaleState = {sort: 'balance', exited: false, page: 0};
 const ops = {page: 0, min: '', max: '', address: '', kind: '', direction: 'any'};
 const anomalies = {page: 0, level: ''};
 let trendWindow = '7d';
+let accumulationWindow = '7';
 let data, rendered, generation = 0, updateTime, cache = new Map(), refreshing = false;
 
 function cutoff(summary, period) {
@@ -72,6 +74,10 @@ async function section(source) {
   const period = periodSelect.value;
   const routes = {
     overview: () => dashboard(summary, period),
+    accumulation: async () => accumulationView(await cached('accumulation.json', summary), holders, accumulationWindow, value => {
+      accumulationWindow = value;
+      render();
+    }),
     trends: async () => trendView(await cached('trends.json', summary), trendWindow, value => {
       trendWindow = value;
       render();

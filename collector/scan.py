@@ -9,6 +9,8 @@ from pathlib import Path
 
 from collector.analytics.activity import observe_activity
 from collector.analytics.markets import collect_trades, exchange_flow, summarize_fills, trade_key
+from collector.analytics.payment_history import update_payment_histories
+from collector.analytics.review import approved, status
 from collector.analytics.signals import balance_signals, record
 from collector.analytics.trends import closed_day_signals
 from collector.model import category, movements, stroops, valid_address, xlm
@@ -103,8 +105,13 @@ def scan(api, store, cfg, now):
                                                 amount=xlm(amount), sender=sender, recipient=recipient,
                                                 hash=operation["transaction_hash"]))
                 for address in sorted(participants):
-                    events["signals"].append(record(f"{identifier}:{address}", "large", "high" if amount >= whale else "low",
-                                                    "Крупное движение XLM", time, address, amount))
+                    if "private_review" in cfg and (movement != "payment" or not approved(address, cfg)):
+                        continue
+                    alert = record(f"{identifier}:{address}", "large", "high" if amount >= whale else "low",
+                                   "Крупное движение XLM", time, address, amount)
+                    if movement == "payment":
+                        alert["private_direct"] = True
+                    events["signals"].append(alert)
             for address in sorted(filter(valid_address, involved)):
                 if address in wallets:
                     signal = observe_activity(wallets[address], address, time, token, inactive_days)
@@ -137,7 +144,7 @@ def scan(api, store, cfg, now):
     state["trade_sources"] = dict(sorted(sources.items(), key=lambda item: int(item[0]), reverse=True)[:15000])
 
     # Reserve capacity for both previously tracked accounts and new candidates.
-    available = max(0, api.requests_remaining - 8)
+    available = max(0, api.requests_remaining - 8 - cfg.get("history_pages", 0))
     tagged = sorted(address for address, label in cfg["labels"].items()
                     if label.get("type") == "exchange" and valid_address(address))[:available]
     available -= len(tagged)
@@ -153,6 +160,8 @@ def scan(api, store, cfg, now):
         candidate = queue.pop(address, None)
         previous = wallets.get(address)
         label = cfg["labels"].get(address)
+        if label is None and status(address, cfg) == "service":
+            label = cfg["private_review"][address]
         if previous is None and balance < whale and label is None:
             continue
         prior_balance = stroops(previous["balance"]) if previous else None
@@ -175,9 +184,10 @@ def scan(api, store, cfg, now):
 
     # Retain a bounded candidate queue; tracked addresses and archives are never pruned.
     state["queue"] = dict(sorted(queue.items(), key=lambda item: (-int(item[1][0]), item[1][1], item[0]))[:8000])
-    active = [wallet for wallet in wallets.values() if wallet["active"] and not wallet["label"]]
+    update_payment_histories(api, state, cfg, now, root["history_elder_ledger"])
+    active = [wallet for address, wallet in wallets.items() if wallet["active"] and approved(address, cfg)]
     private_changes = [stroops(row["delta"]) for row in events["snapshots"]
-                       if row["delta"] is not None and not wallets[row["address"]]["label"]]
+                       if row["delta"] is not None and approved(row["address"], cfg)]
     events["totals"].append(dict(id=batch, time=now,
                                  up=xlm(sum(max(0, change) for change in private_changes)),
                                  down=xlm(sum(max(0, -change) for change in private_changes)),

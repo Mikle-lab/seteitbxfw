@@ -15,7 +15,8 @@ from collector.storage import Store, load, write
 from urllib.error import HTTPError
 
 CFG = json.loads(Path("config.json").read_text())
-CFG.update(trade_pages=0, labels={}, collect_usd_prices=False)
+CFG.update(trade_pages=0, labels={}, collect_usd_prices=False, history_pages=0)
+CFG.pop("private_review", None)
 NOW = "2026-11-27T12:00:00Z"
 LATER = "2026-11-27T12:06:00Z"
 
@@ -116,7 +117,7 @@ class CollectorTests(unittest.TestCase):
         self.api.amount = stroops("1700000")
         self.run_scan(LATER)
         target = self.root / "site"
-        build(self.store.root, target)
+        build(self.store.root, target, CFG)
         summary = load(target / "data/summary.json")
         self.assertFalse(summary["periods"]["24h"]["complete"])
         self.assertEqual(summary["periods"]["all"]["up"], "200000.0000000")

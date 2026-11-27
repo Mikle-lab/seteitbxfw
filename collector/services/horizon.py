@@ -62,6 +62,14 @@ class Horizon:
         result = self.get("/trades", cursor=cursor, limit=limit, order="asc")
         return result["_embedded"]["records"]
 
+    payment_page_size = 200
+
+    def payments(self, address, cursor):
+        params = dict(limit=self.payment_page_size, order="desc")
+        if cursor is not None:
+            params["cursor"] = cursor
+        return self.get("/accounts/" + address + "/payments", **params)["_embedded"]["records"]
+
     def balance(self, address):
         account = self.get("/accounts/" + address, missing=True)
         if account is None:

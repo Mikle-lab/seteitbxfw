@@ -1,6 +1,7 @@
 import {account, chart, date, el, number, panel, signed, table, tile} from '../../shared/ui.js';
 import {anomalyTable} from '../anomalies/index.js';
 import {operationTable} from '../transactions/index.js';
+import {paymentHistory} from '../accumulation/index.js';
 import {walletTrends} from '../trends/index.js';
 import {inactivityText, interactionTable} from '../activity/index.js';
 import {star} from '../watchlist/index.js';
@@ -17,6 +18,8 @@ export function wallet(data, period, cutoff, labels) {
     el('p', {class: 'muted'}, 'Обнаружен ' + date(wallet.first_seen) + ' · Баланс проверен ' + date(wallet.updated) + ' UTC'),
     el('p', {class: 'muted'}, 'Последняя замеченная операция: ' + date(wallet.last_activity) +
       ' UTC · Тишина: ' + inactivityText(wallet.inactivity)),
+    wallet.review === 'candidate' ? el('p', {class: 'warning'}, 'Кандидат. Тип владельца ещё не проверен.') : null,
+    paymentHistory(wallet.payments),
     walletTrends(data.trends),
     panel('Повторные прямые переводы за 30 дней', interactionTable(data.interactions ?? [], wallet.address)),
     panel('История баланса', chart(history.filter(row => row.time >= cutoff))),

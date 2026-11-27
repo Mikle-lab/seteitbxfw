@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 
+from collector.analytics.review import private_signal
 from collector.model import valid_address
 from collector.storage import Store, load, write
 
@@ -72,7 +73,7 @@ def digest(alerts, rates):
     return "\n\n".join(parts)
 
 
-def notify(store, now, send):
+def notify(store, now, send, config=None):
     path = store.root / "notifications.json"
     previous = load(path)
     if previous is None:
@@ -88,7 +89,8 @@ def notify(store, now, send):
             for row in archive.get("signals", {}).values():
                 identifier = row["id"]
                 if (enabled < row["time"] <= now and row["time"] >= cutoff and
-                        row["level"] in LEVELS and identifier not in confirmed):
+                        row["level"] in LEVELS and identifier not in confirmed and
+                        (config is None or private_signal(row, config))):
                     pending[identifier] = row
     alerts = sorted(pending.values(), key=lambda row: (row["time"], row["id"]))[:MAX_ALERTS]
     if alerts:
@@ -130,7 +132,8 @@ def main():
     now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     try:
         with store.locked():
-            delivered = notify(store, now, lambda message: send_message(token, chat, message))
+            delivered = notify(store, now, lambda message: send_message(token, chat, message),
+                               load(Path("config.json")))
     except DeliveryError as error:
         print(str(error))
         return 1

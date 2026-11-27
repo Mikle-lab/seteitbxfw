@@ -5,7 +5,7 @@ import {star} from '../watchlist/index.js';
 const sorting = {balance: 'Баланс', up: 'Накопление', down: 'Сокращение', percent: 'Изменение, %', last: 'Последняя активность', inactivity: 'Длительность тишины'};
 
 export function whales(rows, period, state, rerender) {
-  const list = rows.filter(row => !row.label && (state.exited || row.active) && (!state.dormant || row.inactivity?.dormant));
+  const list = rows.filter(row => (!row.review || row.review === "approved") && !row.label && (state.exited || row.active) && (!state.dormant || row.inactivity?.dormant));
   const value = row => state.sort === 'last' ? Date.parse(row.last_activity ?? 0) :
     state.sort === 'inactivity' ? row.inactivity?.days ?? -1 :
     Number(state.sort === 'balance' ? row.balance : row.periods[period][state.sort]);
@@ -30,7 +30,7 @@ export function whales(rows, period, state, rerender) {
       el('span', {class: row.inactivity?.dormant ? 'warning' : 'muted'}, inactivityText(row.inactivity)), stats.anomalies ? el('span', {class: 'warning'}, number(stats.anomalies)) : '—'];
   });
   return el('section', {}, el('h1', {}, 'Киты'), filters,
-    el('p', {class: 'muted'}, 'Период тишины рассчитан по просмотренным операциям. Порог давней тишины установлен в настройках сборщика.'),
+    el('p', {class: 'muted'}, 'Здесь только адреса, допущенные после проверки. Период тишины рассчитан по просмотренным операциям. Порог давней тишины установлен в настройках сборщика.'),
     table(['Адрес', 'Категория', 'Баланс XLM', 'Изменение XLM', 'Изменение %', 'Получено XLM', 'Отправлено XLM',
       'Крупных движений', 'Активность UTC', 'Тишина', 'Сигналы'], result), nav);
 }

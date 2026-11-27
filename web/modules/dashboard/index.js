@@ -36,15 +36,16 @@ export function dashboard(summary, period) {
     tile('Крупных движений', number(stats.large)),
     tile('Новых китов', number(stats.new)),
     tile('Сигналов', el('span', {class: 'warning'}, number(stats.anomalies))),
-    tile('Приток на биржевые адреса, XLM', number(stats.markets?.inflow)),
+    ...(summary.private_only ? [] : [tile('Приток на биржевые адреса, XLM', number(stats.markets?.inflow)),
     tile('Отток с биржевых адресов, XLM', number(stats.markets?.outflow)),
     tile('DEX · покупки XLM', el('span', {class: 'positive'}, number(stats.markets?.buy))),
-    tile('DEX · продажи XLM', el('span', {class: 'negative'}, number(stats.markets?.sell))));
+    tile('DEX · продажи XLM', el('span', {class: 'negative'}, number(stats.markets?.sell)))]));
   const distribution = Object.entries(summary.categories).map(([name, count]) => el('div', {},
     el('span', {}, name), el('strong', {}, number(count)), el('meter', {min: 0, max: summary.active, value: count, 'aria-label': name})));
   return el('section', {}, el('h1', {}, 'Обзор'),
-    el('p', {class: 'muted'}, 'Stellar Mainnet · статистика обнаруженных адресов'),
+    el('p', {class: 'muted'}, 'Stellar Mainnet · статистика допущенных держателей'),
     cards,
+    summary.candidates ? el('p', {class: 'muted'}, number(summary.candidates) + ' кандидатов проходят отдельную проверку.', ' ', el('a', {href: '#accumulation'}, 'Смотреть историю платежей')) : null,
     el('div', {class: 'panels'}, panel('Совокупный баланс китов', chart(stats.chart)),
       panel('Категории держателей', el('div', {class: 'distribution'}, distribution.length ? distribution : 'Пока нет данных.'))),
     el('div', {class: 'panels'}, panel('Накопление и сокращение по снимкам', balanceFlows(stats.chart)),

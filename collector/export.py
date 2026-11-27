@@ -6,6 +6,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from collector.analytics.activity import direct_interactions, inactivity
+from collector.analytics.payment_history import summarize_history
+from collector.analytics.review import private_payment, private_signal, status
 from collector.analytics.trends import build_trends
 from collector.market_export import build_markets
 from collector.services.prices import SOURCE, price_history
@@ -29,14 +31,14 @@ def downsample(rows, maximum):
     return [rows[index * (len(rows) - 1) // (maximum - 1)] for index in range(maximum)]
 
 
-def build(data=Path("data"), target=Path("dist")):
+def build(data=Path("data"), target=Path("dist"), config=None):
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree("web", target)
     (target / ".nojekyll").touch()
     public = target / "data"
     state = load(data / "state.json", {})
-    cfg = load(Path("config.json"))
+    cfg = load(Path("config.json")) if config is None else config
     end = timestamp(state["last_success"]) if state else datetime.now(timezone.utc)
     coverage = timestamp(state["coverage_from"]) if state else None
     errors = sorted((data / "errors").glob("*.json"))
@@ -62,7 +64,30 @@ def build(data=Path("data"), target=Path("dist")):
         fill_totals.extend(day.get("trade_summaries", {}).values() if "trade_summaries" in day else day_fills)
         for row in day.get("snapshots", {}).values():
             snapshots[row["address"]].append(row)
-    operations, signals, totals = map(ordered, (operations, signals, totals))
+    classes = {address: status(address, cfg) for address in wallets}
+    approved_addresses = {address for address, review in classes.items() if review == "approved"}
+    private_wallets = {address: wallets[address] for address in approved_addresses}
+    operations = ordered(row for row in operations if private_payment(row, cfg, approved_addresses))
+    signals = ordered(row for row in signals if private_signal(row, cfg,
+                      approved_addresses if "private_review" in cfg else None))
+    totals = ordered(totals) if "private_review" not in cfg else []
+    if "private_review" in cfg:
+        snapshots_by_time = defaultdict(list)
+        for address in private_wallets:
+            for sample in snapshots[address]:
+                snapshots_by_time[sample["time"]].append(sample)
+        balances = {}
+        for instant, changes in sorted(snapshots_by_time.items()):
+            up = down = 0
+            for sample in changes:
+                balance = stroops(sample["balance"])
+                if sample["delta"] is not None:
+                    delta = stroops(sample["delta"])
+                    up += max(0, delta)
+                    down += max(0, -delta)
+                balances[sample["address"]] = balance
+            total = sum(balance for balance in balances.values() if balance >= stroops(cfg["whale_min_xlm"]))
+            totals.append(dict(time=instant, balance=xlm(total), up=xlm(up), down=xlm(down)))
     by_wallet, signals_by_wallet = defaultdict(list), defaultdict(list)
     for row in operations:
         for address in {row["sender"], row["recipient"]} & wallets.keys():
@@ -74,13 +99,15 @@ def build(data=Path("data"), target=Path("dist")):
     cuts = {key: (end - timedelta(hours=hours) if hours else coverage or end).isoformat().replace("+00:00", "Z")
             for key, hours in PERIODS.items()}
     trend_periods, wallet_trends = build_trends(wallets, snapshots, end.date())
+    if "private_review" in cfg:
+        trend_periods, _ = build_trends(private_wallets, snapshots, end.date())
     price_rows = price_history(prices)
     prices_by_day = {row["day"]: row for row in price_rows}
     write(public / "trends.json", dict(through=(end.date() - timedelta(days=1)).isoformat(), periods=trend_periods,
                                        prices=price_rows[-30:], price_source=SOURCE, price_error=state.get("price_error")))
     threshold_days = cfg.get("inactive_days", 30)
     activity_through = state.get("last_operation")
-    interactions = direct_interactions(operations, wallets, cuts["30d"])
+    interactions = direct_interactions(operations, private_wallets, cuts["30d"])
     links_by_address = defaultdict(list)
     for interaction in interactions:
         for address in (interaction["left"], interaction["right"]):
@@ -90,7 +117,7 @@ def build(data=Path("data"), target=Path("dist")):
     metrics = {}
     whale_rows = []
     for address, wallet in wallets.items():
-        if not valid_address(address):
+        if not valid_address(address) or classes[address] == "service":
             continue
         samples = ordered(snapshots[address])
         history = downsample(samples, 240)
@@ -116,13 +143,22 @@ def build(data=Path("data"), target=Path("dist")):
         for interval in wallet_trends[address].values():
             for row in interval["daily"]:
                 row["price"] = prices_by_day.get(row["day"])
-        whale_row = dict(address=address, **wallet, periods=stats, inactivity=inactivity(wallet, activity_through, threshold_days))
+        payment_summary = summarize_history(state.get("payment_history", {}).get(address))
+        whale_row = dict(address=address, **wallet, periods=stats, review=classes[address],
+                         payments=payment_summary, inactivity=inactivity(wallet, activity_through, threshold_days))
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,
               trends=wallet_trends[address], operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
               counterparts=counterparts.most_common(12), interactions=links_by_address[address][:15]))
 
-    whales = [row for row in whale_rows if not row["label"]]
+    whales = [row for row in whale_rows if row["review"] == "approved"]
+    candidates = [row for row in whale_rows if row["review"] == "candidate" and row["active"]]
+    payments_overview = {
+        width: {"approved": accumulation_ranking(whales, end.date(), width),
+                "candidates": accumulation_ranking(candidates, end.date(), width)}
+        for width in ("1", "7", "30")
+    }
+    write(public / "accumulation.json", dict(through=end.date().isoformat(), periods=payments_overview))
     active = [row for row in whales if row["active"]]
     for period, cut in cuts.items():
         up = sum(stroops(row["periods"][period]["up"]) for row in whales)
@@ -151,10 +187,20 @@ def build(data=Path("data"), target=Path("dist")):
           exported=end.isoformat(), active=len(active), discovered=len(whales),
           total=xlm(sum(stroops(row["balance"]) for row in active)), periods=metrics,
           categories=Counter(row["category"] for row in active), labels=config_labels,
-          inactive_days=threshold_days,
+          inactive_days=threshold_days, candidates=len(candidates), private_only="private_review" in cfg,
           threshold=cfg["large_xlm"], sections={"operations": export_chunks(public, "operations", operations),
                                               "anomalies": export_chunks(public, "anomalies", signals)}))
     write(public / "whales.json", indexed)
+
+
+def accumulation_ranking(rows, end, width):
+    complete = [row for row in rows if row["payments"] and
+                row["payments"]["end"] == end.isoformat() and row["payments"]["periods"][width]["complete"]]
+    gains = [row for row in complete if stroops(row["payments"]["periods"][width]["net"]) > 0]
+    ranked = sorted(gains, key=lambda row: (-stroops(row["payments"]["periods"][width]["net"]), row["address"]))
+    return dict(complete=len(complete), total=len(rows), rows=[
+        dict(address=row["address"], balance=row["balance"], flows=row["payments"]["periods"][width])
+        for row in ranked[:20]])
 
 
 def export_chunks(root, name, rows):
