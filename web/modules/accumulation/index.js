@@ -1,4 +1,4 @@
-import {signedXlm, xlm} from '../../shared/money.js';
+import {signedXlm, xlm, portfolioTotal} from '../../shared/money.js';
 import {account, el, number, panel, select, table} from '../../shared/ui.js';
 
 const periods = {'1': '1 день', '7': '7 дней', '30': '30 дней'};
@@ -29,8 +29,8 @@ export function accumulationView(data, holders, window, change) {
     el('div', {class: 'filters'}, el('label', {}, 'Период платежей', select(periods, window, change))),
     panel('Допущенные держатели', ranking(result.approved)),
     panel('Положительный итог у кандидатов', ranking(result.candidates)),
-    panel('Кандидаты на проверку', table(['Адрес', 'Баланс XLM', 'История для периода'],
-      candidates.map(row => [account(row.address), xlm(row.balance), row.payments?.end === data.through &&
+    panel('Кандидаты на проверку', table(['Адрес', 'Баланс XLM', 'Активы USD', 'История для периода'],
+      candidates.map(row => [account(row.address), xlm(row.balance), portfolioTotal(row.portfolio_total), row.payments?.end === data.through &&
         row.payments.periods[window].complete ? 'Готова' : 'Догружается или неполная'])),
     ));
 }

@@ -1,4 +1,4 @@
-import {signedXlm, xlm} from '../../shared/money.js';
+import {signedXlm, xlm, portfolioTotal} from '../../shared/money.js';
 import {account, date, el, number, select, signed, table} from '../../shared/ui.js';
 import {inactivityText} from '../activity/index.js';
 import {star} from '../watchlist/index.js';
@@ -26,12 +26,12 @@ export function whales(rows, period, state, rerender) {
   const result = list.slice(state.page * 25, (state.page + 1) * 25).map(row => {
     const stats = row.periods[period];
     return [el('div', {class: 'account'}, account(row.address, true), star(row.address)), row.category,
-      xlm(row.balance), signedXlm(stats.delta), signed(stats.percent), xlm(stats.received), xlm(stats.sent),
+      xlm(row.balance), portfolioTotal(row.portfolio_total), signedXlm(stats.delta), signed(stats.percent), xlm(stats.received), xlm(stats.sent),
       number(stats.operations), date(row.last_activity),
       el('span', {class: row.inactivity?.dormant ? 'warning' : 'muted'}, inactivityText(row.inactivity)), stats.anomalies ? el('span', {class: 'warning'}, number(stats.anomalies)) : '—'];
   });
   return el('section', {}, el('h1', {}, 'Киты'), filters,
     el('p', {class: 'muted'}, 'Здесь только адреса, допущенные после проверки. Период тишины рассчитан по просмотренным операциям. Порог давней тишины установлен в настройках сборщика.'),
-    table(['Адрес', 'Категория', 'Баланс XLM', 'Изменение XLM', 'Изменение %', 'Получено XLM', 'Отправлено XLM',
+    table(['Адрес', 'Категория', 'Баланс XLM', 'Активы USD', 'Изменение XLM', 'Изменение %', 'Получено XLM', 'Отправлено XLM',
       'Крупных движений', 'Активность UTC', 'Тишина', 'Сигналы'], result), nav);
 }

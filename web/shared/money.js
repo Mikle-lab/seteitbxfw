@@ -39,3 +39,11 @@ export function spotText(quote) {
   return '1 XLM ≈ ' + usdQuote.format(Number(quote.price)) +
     ' · Coinbase Exchange · ' + date(quote.time) + ' UTC';
 }
+
+
+export function portfolioTotal(summary) {
+  if (!summary || summary.usd == null || !currentQuote({price: 1, time: summary.time})) return '—';
+  const missing = summary.total - summary.valued;
+  return el('span', {class: 'xlm-value'}, '≈ ' + dollars(summary.usd),
+    missing ? el('span', {class: 'xlm-usd'}, 'Без оценки: ' + missing) : null);
+}

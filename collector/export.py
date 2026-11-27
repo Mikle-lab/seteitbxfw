@@ -146,13 +146,15 @@ def build(data=Path("data"), target=Path("dist"), config=None):
             for row in interval["daily"]:
                 row["price"] = prices_by_day.get(row["day"])
         payment_summary = summarize_history(state.get("payment_history", {}).get(address))
+        portfolio = value_portfolio(wallet, state.get("asset_quotes", {}), state.get("spot_usd"), valuation_time)
+        portfolio_total = (dict(usd=portfolio["usd"], valued=portfolio["valued"], total=len(portfolio["assets"]),
+                                time=portfolio["quote_time"]) if portfolio is not None else None)
         wallet_index = {key: value for key, value in wallet.items() if key != "assets"}
         whale_row = dict(address=address, **wallet_index, periods=stats, review=classes[address],
-                         payments=payment_summary, inactivity=inactivity(wallet, activity_through, threshold_days))
+                         payments=payment_summary, portfolio_total=portfolio_total, inactivity=inactivity(wallet, activity_through, threshold_days))
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,
-              trends=wallet_trends[address], portfolio=value_portfolio(wallet, state.get("asset_quotes", {}),
-              state.get("spot_usd"), valuation_time), operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
+              trends=wallet_trends[address], portfolio=portfolio, operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
               counterparts=counterparts.most_common(12), interactions=links_by_address[address][:15]))
 
     whales = [row for row in whale_rows if row["review"] == "approved"]

@@ -1,4 +1,4 @@
-import {signedXlm, xlm} from '../../shared/money.js';
+import {signedXlm, xlm, portfolioTotal} from '../../shared/money.js';
 import {account, addressPattern, el, number, table} from '../../shared/ui.js';
 const key = 'xlm-radar.watchlist.v1';
 
@@ -52,11 +52,11 @@ export function watchlist(whales, period, rerender) {
       try { save(id, null); rerender(); }
       catch { message.textContent = 'Локальное хранилище недоступно.'; }
     }}, 'Удалить');
-    return [account(id, true), name || '—', xlm(wallet?.balance), signedXlm(wallet?.periods[period].delta),
+    return [account(id, true), name || '—', xlm(wallet?.balance), portfolioTotal(wallet?.portfolio_total), signedXlm(wallet?.periods[period].delta),
       number(wallet?.periods[period].anomalies), remove];
   });
   return el('section', {}, el('h1', {}, 'Избранное'),
     el('p', {class: 'muted'}, 'Названия и адреса сохраняются в этом браузере. Балансы доступны для обнаруженных сборщиком адресов.'),
     el('div', {class: 'filters'}, address, label, button, download, message),
-    table(['Адрес', 'Название', 'Баланс XLM', 'Изменение XLM', 'Сигналы', ''], rows));
+    table(['Адрес', 'Название', 'Баланс XLM', 'Активы USD', 'Изменение XLM', 'Сигналы', ''], rows));
 }
