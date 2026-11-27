@@ -7,6 +7,7 @@ import {anomalyTable, filters as anomalyFilters} from './modules/anomalies/index
 import {watchlist} from './modules/watchlist/index.js';
 import {exchanges} from './modules/exchanges/index.js';
 import {dex} from './modules/dex/index.js';
+import {interactionsView} from './modules/activity/index.js';
 import {trendView} from './modules/trends/index.js';
 
 const view = document.querySelector('#view');
@@ -73,6 +74,7 @@ async function section(source) {
       trendWindow = value;
       render();
     }),
+    interactions: async () => interactionsView(await cached('interactions.json', summary)),
     whales: () => whales(holders, period, whaleState, render),
     anomalies: () => feed(summary, period, 'anomalies'),
     transactions: () => feed(summary, period, 'operations'),

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+from collector.analytics.activity import direct_interactions, inactivity
 from collector.analytics.trends import build_trends
 from collector.market_export import build_markets
 from collector.model import stroops, valid_address, xlm
@@ -71,6 +72,15 @@ def build(data=Path("data"), target=Path("dist")):
             for key, hours in PERIODS.items()}
     trend_periods, wallet_trends = build_trends(wallets, snapshots, end.date())
     write(public / "trends.json", dict(through=(end.date() - timedelta(days=1)).isoformat(), periods=trend_periods))
+    threshold_days = cfg.get("inactive_days", 30)
+    activity_through = state.get("last_operation")
+    interactions = direct_interactions(operations, wallets, cuts["30d"])
+    links_by_address = defaultdict(list)
+    for interaction in interactions:
+        for address in (interaction["left"], interaction["right"]):
+            links_by_address[address].append(interaction)
+    write(public / "interactions.json", dict(through=activity_through, pairs=interactions[:100],
+                                             coverage=state.get("coverage_from"), total=len(interactions)))
     metrics = {}
     whale_rows = []
     for address, wallet in wallets.items():
@@ -97,11 +107,11 @@ def build(data=Path("data"), target=Path("dist")):
                                  percent=float(round(Decimal(up - down) * 100 / baseline, 2)) if baseline else None,
                                  received=xlm(received), sent=xlm(sent), operations=len(movements),
                                  anomalies=sum(row["time"] >= cut for row in signals_by_wallet[address]))
-        whale_row = dict(address=address, **wallet, periods=stats)
+        whale_row = dict(address=address, **wallet, periods=stats, inactivity=inactivity(wallet, activity_through, threshold_days))
         whale_rows.append(whale_row)
         write(public / "wallets" / (address + ".json"), dict(wallet=whale_row, history=history,
               trends=wallet_trends[address], operations=related[-100:][::-1], anomalies=signals_by_wallet[address][-100:][::-1],
-              counterparts=counterparts.most_common(12)))
+              counterparts=counterparts.most_common(12), interactions=links_by_address[address][:15]))
 
     whales = [row for row in whale_rows if not row["label"]]
     active = [row for row in whales if row["active"]]
@@ -131,6 +141,7 @@ def build(data=Path("data"), target=Path("dist")):
           exported=end.isoformat(), active=len(active), discovered=len(whales),
           total=xlm(sum(stroops(row["balance"]) for row in active)), periods=metrics,
           categories=Counter(row["category"] for row in active), labels=config_labels,
+          inactive_days=threshold_days,
           threshold=cfg["large_xlm"], sections={"operations": export_chunks(public, "operations", operations),
                                               "anomalies": export_chunks(public, "anomalies", signals)}))
     write(public / "whales.json", indexed)

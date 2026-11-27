@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from collector.analytics.activity import observe_activity
 from collector.analytics.markets import collect_trades, exchange_flow, summarize_fills, trade_key
 from collector.analytics.signals import balance_signals, record
 from collector.analytics.trends import closed_day_signals
@@ -52,6 +53,7 @@ def scan(api, store, cfg, now):
     large = stroops(cfg["large_xlm"])
     cutoff = stroops(cfg["candidate_min_xlm"])
     whale = stroops(cfg["whale_min_xlm"])
+    inactive_days = cfg.get("inactive_days", 30)
     count = 0
     caught_up = False
 
@@ -82,7 +84,7 @@ def scan(api, store, cfg, now):
                     reason = "Крупный приток на биржевой адрес" if flow["direction"] == "in" else "Крупный отток с биржевого адреса"
                     events["signals"].append(record(token + ":exchange", "exchange", "high", reason,
                                                     time, flow["address"], amount))
-            involved = {source, operation.get("into")}
+            involved = {source, *(operation.get(role) for role in ("into", "from", "to", "account", "funder"))}
             for index, (movement, sender, recipient, units) in enumerate(movements(operation)):
                 amount = stroops(units)
                 if amount <= 0 or sender == recipient:
@@ -104,7 +106,9 @@ def scan(api, store, cfg, now):
                                                     "Крупное движение XLM", time, address, amount))
             for address in sorted(filter(valid_address, involved)):
                 if address in wallets:
-                    wallets[address]["last_activity"] = time
+                    signal = observe_activity(wallets[address], address, time, token, inactive_days)
+                    if signal:
+                        events["signals"].append(signal)
                 elif kind in BALANCE_OPERATIONS:
                     queue.setdefault(address, ["0", time])
         if caught_up or len(rows) < cfg["page_limit"]:

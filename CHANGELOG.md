@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Wallet inactivity based on scanned operations, a dormant filter, and activity-resumption alerts.
+- Repeated direct XLM transfers with transaction evidence and no ownership inference.
+
 ## 0.3.0
 
 - UTC daily balance changes and complete-window rankings for 7 and 30 days.

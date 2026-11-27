@@ -2,6 +2,7 @@ import {account, chart, date, el, number, panel, signed, table, tile} from '../.
 import {anomalyTable} from '../anomalies/index.js';
 import {operationTable} from '../transactions/index.js';
 import {walletTrends} from '../trends/index.js';
+import {inactivityText, interactionTable} from '../activity/index.js';
 import {star} from '../watchlist/index.js';
 
 export function wallet(data, period, cutoff, labels) {
@@ -14,7 +15,10 @@ export function wallet(data, period, cutoff, labels) {
       tile('Максимум XLM', number(wallet.maximum)), tile('Изменение XLM', signed(stats.delta)),
       tile('Получено крупными движениями', number(stats.received)), tile('Отправлено крупными движениями', number(stats.sent))),
     el('p', {class: 'muted'}, 'Обнаружен ' + date(wallet.first_seen) + ' · Баланс проверен ' + date(wallet.updated) + ' UTC'),
+    el('p', {class: 'muted'}, 'Последняя замеченная операция: ' + date(wallet.last_activity) +
+      ' UTC · Тишина: ' + inactivityText(wallet.inactivity)),
     walletTrends(data.trends),
+    panel('Повторные прямые переводы за 30 дней', interactionTable(data.interactions ?? [], wallet.address)),
     panel('История баланса', chart(history.filter(row => row.time >= cutoff))),
     panel('Крупные движения', operationTable(operations.filter(row => row.time >= cutoff), labels)),
     panel('Аномалии', anomalyTable(anomalies.filter(row => row.time >= cutoff))),
