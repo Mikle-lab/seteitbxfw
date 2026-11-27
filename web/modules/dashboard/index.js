@@ -1,5 +1,29 @@
 import {chart, date, el, number, panel, signed, tile} from '../../shared/ui.js';
 
+function balanceFlows(rows) {
+  const observed = rows.filter(row => row.up != null && row.down != null);
+  if (!observed.length) return el('p', {class: 'muted'}, 'Ожидаются повторные снимки.');
+  const maximum = Math.max(0, ...observed.flatMap(row => [Number(row.up), Number(row.down)]));
+  const canvas = el('canvas', {class: 'chart', width: '720', height: '150', role: 'img',
+    'aria-label': 'Накопление зелёным и сокращение красным между снимками'});
+  const context = canvas.getContext('2d');
+  const width = 720 / observed.length;
+  context.fillStyle = '#2b363d';
+  context.fillRect(0, 74, 720, 2);
+  observed.forEach((row, index) => {
+    const up = 66 * Number(row.up) / (maximum || 1);
+    const down = 66 * Number(row.down) / (maximum || 1);
+    const x = width * index + width / 4;
+    const bar = Math.max(1, Math.min(18, width / 2));
+    context.fillStyle = '#8ce0a1';
+    context.fillRect(x, 74 - up, bar, up);
+    context.fillStyle = '#ffa1a1';
+    context.fillRect(x, 76, bar, down);
+  });
+  return el('div', {}, canvas, el('div', {class: 'legend'}, date(observed[0].time),
+    'Пик за снимок: ' + number(maximum) + ' XLM', date(observed.at(-1).time)));
+}
+
 export function dashboard(summary, period) {
   const stats = summary.periods[period];
   const cards = el('div', {class: 'grid'},
@@ -19,7 +43,8 @@ export function dashboard(summary, period) {
     cards,
     el('div', {class: 'panels'}, panel('Совокупный баланс китов', chart(stats.chart)),
       panel('Категории держателей', el('div', {class: 'distribution'}, distribution.length ? distribution : 'Пока нет данных.'))),
-    panel('Покрытие наблюдений', el('p', {class: 'muted'},
+    el('div', {class: 'panels'}, panel('Накопление и сокращение по снимкам', balanceFlows(stats.chart)),
+      panel('Покрытие наблюдений', el('p', {class: 'muted'},
       'Начало сканирования: ' + date(summary.coverage) + ' UTC. Изменения рассчитаны по снимкам известных кошельков. ' +
-      'Первый баланс нового адреса не засчитывается как накопление. Индексация всех держателей сети не выполняется.')));
+      'Первый баланс нового адреса не засчитывается как накопление. Индексация всех держателей сети не выполняется.'))));
 }
