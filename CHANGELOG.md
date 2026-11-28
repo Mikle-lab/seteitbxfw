@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the overview's balance totals with matched start and end balance observations for approved private holders, with explicit coverage and a separate last-operation timestamp.
+
 - Added a six-minute GitHub Actions continuation timer and a data freshness check for automatic scans.
 - Added the manual Telegram delivery test and grouped alerts that show balances, approximate USD amounts, and 7- and 30-day direct XLM flows.
 - Separated approved private holders from unreviewed candidates and service wallets in the dashboard and Telegram.
